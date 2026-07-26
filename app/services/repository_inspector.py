@@ -1,7 +1,7 @@
 """Safe, read-only repository inspection service."""
 
-from collections import Counter
 import logging
+from collections import Counter
 from pathlib import Path
 
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
@@ -72,11 +72,7 @@ class RepositoryInspector:
         source_files = [
             path for path in tracked_files if self._is_source_file(Path(path))
         ]
-        test_files = [
-            path
-            for path in source_files
-            if self._is_test_file(Path(path))
-        ]
+        test_files = [path for path in source_files if self._is_test_file(Path(path))]
 
         language_counts = Counter(
             _EXTENSION_LANGUAGE_MAP[Path(path).suffix.lower()]

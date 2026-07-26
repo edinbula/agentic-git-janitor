@@ -1,10 +1,9 @@
 """Tests for safe repository inspection."""
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import pytest
-
 from app.services.repository_inspector import RepositoryInspector
 
 
