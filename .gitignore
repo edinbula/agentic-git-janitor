@@ -21,3 +21,18 @@ build/
 
 # Distribution archives
 *.zip
+# Distribution archives
+*.zip
+
+# Local generated reports
+reports/
+*.audit.json
+*.plan.json
+
+# Local patch workspaces
+patches/*
+!patches/.gitkeep
+
+# Local logs
+logs/*
+!logs/.gitkeep
