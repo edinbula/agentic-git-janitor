@@ -94,6 +94,10 @@ def inspect(
         str(len(summary.source_files)),
     )
     table.add_row(
+        "Source lines",
+        str(summary.total_source_lines),
+    )
+    table.add_row(
         "Test files",
         str(len(summary.test_files)),
     )
@@ -105,15 +109,57 @@ def inspect(
         "Dependency files",
         ", ".join(summary.dependency_files) or "None detected",
     )
+    table.add_row(
+        "Architecture",
+        summary.architecture_hint or "Unknown",
+    )
+    table.add_row(
+        "Frameworks",
+        ", ".join(summary.detected_frameworks) or "None detected",
+    )
+    table.add_row(
+        "Package managers",
+        ", ".join(summary.package_managers) or "None detected",
+    )
+    table.add_row(
+        "Test frameworks",
+        ", ".join(summary.test_frameworks) or "None detected",
+    )
+    table.add_row(
+        "Entry points",
+        ", ".join(summary.entry_points) or "None detected",
+    )
     console.print(table)
 
     if summary.changed_files:
         changed = Table(title="Working Tree Changes")
         changed.add_column("Status")
         changed.add_column("File")
-        for item in summary.changed_files:
-            changed.add_row(item.status, item.path)
+        for changed_file in summary.changed_files:
+            changed.add_row(changed_file.status, changed_file.path)
         console.print(changed)
+
+    if summary.inferred_commands:
+        commands = Table(title="Inferred Development Commands")
+        commands.add_column("Purpose")
+        commands.add_column("Command")
+        commands.add_column("Confidence", justify="right")
+        commands.add_column("Source")
+        for inferred_command in summary.inferred_commands:
+            commands.add_row(
+                inferred_command.purpose,
+                inferred_command.command,
+                f"{inferred_command.confidence:.0%}",
+                inferred_command.source,
+            )
+        console.print(commands)
+
+    if summary.analysis_strategy:
+        strategy = "\n".join(
+            f"{index}. {item}"
+            for index, item in enumerate(summary.analysis_strategy, start=1)
+        )
+        console.print(Panel(strategy, title="Recommended Analysis Strategy"))
 
 
 @app.command()

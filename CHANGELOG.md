@@ -6,6 +6,18 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Repository profiler integration with the inspection workflow
+- Source-line, configuration-file, and documentation-file inventory
+- Rich CLI output for architecture, frameworks, tooling, entry points, inferred commands, and analysis strategy
+- Direct tests for repository profiling, profiler integration, and CLI output
+
+### Changed
+
+- Package and runtime versions now consistently report `0.3.1`
+- CI now runs pytest with coverage enforcement
+
 ### Planned
 
 - Structured patch planning

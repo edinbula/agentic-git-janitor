@@ -211,7 +211,7 @@ ruff format .
 ruff check .
 ruff format --check .
 mypy app
-pytest
+pytest --cov=app --cov-report=term-missing
 ```
 
 For contribution setup, coding standards, and pull request expectations, see [CONTRIBUTING.md](CONTRIBUTING.md) and [Development Guide](docs/development.md).

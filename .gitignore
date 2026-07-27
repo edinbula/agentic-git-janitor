@@ -8,9 +8,6 @@ __pycache__/
 .coverage
 htmlcov/
 .env
-logs/
-reports/
-patches/
 .janitor-workspaces/
 dist/
 build/
@@ -21,8 +18,7 @@ build/
 
 # Distribution archives
 *.zip
-# Distribution archives
-*.zip
+*.rar
 
 # Local generated reports
 reports/

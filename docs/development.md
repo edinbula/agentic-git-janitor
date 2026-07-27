@@ -70,7 +70,7 @@ mypy app
 Test:
 
 ```bash
-pytest
+pytest --cov=app --cov-report=term-missing
 ```
 
 Run all before each pull request.

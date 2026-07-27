@@ -41,7 +41,7 @@ jobs:
           else
             echo "Development group unavailable; installing project and tools directly."
             python -m pip install -e .
-            python -m pip install ruff mypy pytest
+            python -m pip install ruff mypy pytest pytest-cov
           fi
 
       - name: Ruff lint
@@ -54,4 +54,4 @@ jobs:
         run: mypy app
 
       - name: pytest
-        run: pytest
+        run: pytest --cov=app --cov-report=term-missing

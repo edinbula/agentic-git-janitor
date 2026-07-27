@@ -37,9 +37,16 @@ Current output may include:
 - Primary language
 - Tracked-file count
 - Source-file count
+- Total source lines
 - Test-file count
 - Changed files
 - Dependency files
+- Architecture hint
+- Detected frameworks and package managers
+- Detected test frameworks
+- Configured and conventional entry points
+- Inferred development commands with confidence and source
+- Recommended downstream analysis strategy
 
 ## `audit`
 
