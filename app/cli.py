@@ -10,9 +10,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from app.agents.code_auditor import CodeAuditor
+from app.agents.patch_planner import PatchPlanner
 from app.config.settings import get_settings
 from app.logging_config import configure_logging
 from app.models.audit import AuditReport, FindingSeverity
+from app.models.plan import PatchPlan
+from app.models.repository import RepositorySummary
 from app.services.repository_inspector import RepositoryInspector
 
 app = typer.Typer(
@@ -67,52 +70,40 @@ def inspect(
         )
         raise typer.Exit(code=1) from exc
 
+    _display_repository_summary(summary)
+
+
+def _display_repository_summary(summary: RepositorySummary) -> None:
+    """Render repository inspection results."""
     console.print(
         Panel(
             f"[bold]{summary.repository_name}[/bold]\n{summary.repository_path}",
             title="Repository",
         )
     )
+    console.print(_repository_summary_table(summary))
+    _display_working_tree_changes(summary)
+    _display_inferred_commands(summary)
+    _display_analysis_strategy(summary)
 
+
+def _repository_summary_table(summary: RepositorySummary) -> Table:
+    """Build the main repository summary table."""
     table = Table(title="Repository Summary")
     table.add_column("Property", style="bold")
     table.add_column("Value")
-    table.add_row(
-        "Primary language",
-        summary.primary_language or "Unknown",
-    )
-    table.add_row(
-        "Current branch",
-        summary.current_branch or "Detached / unknown",
-    )
-    table.add_row(
-        "Tracked files",
-        str(summary.tracked_file_count),
-    )
-    table.add_row(
-        "Source files",
-        str(len(summary.source_files)),
-    )
-    table.add_row(
-        "Source lines",
-        str(summary.total_source_lines),
-    )
-    table.add_row(
-        "Test files",
-        str(len(summary.test_files)),
-    )
-    table.add_row(
-        "Changed files",
-        str(len(summary.changed_files)),
-    )
+    table.add_row("Primary language", summary.primary_language or "Unknown")
+    table.add_row("Current branch", summary.current_branch or "Detached / unknown")
+    table.add_row("Tracked files", str(summary.tracked_file_count))
+    table.add_row("Source files", str(len(summary.source_files)))
+    table.add_row("Source lines", str(summary.total_source_lines))
+    table.add_row("Test files", str(len(summary.test_files)))
+    table.add_row("Changed files", str(len(summary.changed_files)))
     table.add_row(
         "Dependency files",
         ", ".join(summary.dependency_files) or "None detected",
     )
-    table.add_row(
-        "Architecture",
-        summary.architecture_hint or "Unknown",
-    )
+    table.add_row("Architecture", summary.architecture_hint or "Unknown")
     table.add_row(
         "Frameworks",
         ", ".join(summary.detected_frameworks) or "None detected",
@@ -129,37 +120,49 @@ def inspect(
         "Entry points",
         ", ".join(summary.entry_points) or "None detected",
     )
-    console.print(table)
+    return table
 
-    if summary.changed_files:
-        changed = Table(title="Working Tree Changes")
-        changed.add_column("Status")
-        changed.add_column("File")
-        for changed_file in summary.changed_files:
-            changed.add_row(changed_file.status, changed_file.path)
-        console.print(changed)
 
-    if summary.inferred_commands:
-        commands = Table(title="Inferred Development Commands")
-        commands.add_column("Purpose")
-        commands.add_column("Command")
-        commands.add_column("Confidence", justify="right")
-        commands.add_column("Source")
-        for inferred_command in summary.inferred_commands:
-            commands.add_row(
-                inferred_command.purpose,
-                inferred_command.command,
-                f"{inferred_command.confidence:.0%}",
-                inferred_command.source,
-            )
-        console.print(commands)
+def _display_working_tree_changes(summary: RepositorySummary) -> None:
+    """Render changed files when the repository is dirty."""
+    if not summary.changed_files:
+        return
+    changed = Table(title="Working Tree Changes")
+    changed.add_column("Status")
+    changed.add_column("File")
+    for changed_file in summary.changed_files:
+        changed.add_row(changed_file.status, changed_file.path)
+    console.print(changed)
 
-    if summary.analysis_strategy:
-        strategy = "\n".join(
-            f"{index}. {item}"
-            for index, item in enumerate(summary.analysis_strategy, start=1)
+
+def _display_inferred_commands(summary: RepositorySummary) -> None:
+    """Render inferred development commands."""
+    if not summary.inferred_commands:
+        return
+    commands = Table(title="Inferred Development Commands")
+    commands.add_column("Purpose")
+    commands.add_column("Command")
+    commands.add_column("Confidence", justify="right")
+    commands.add_column("Source")
+    for inferred_command in summary.inferred_commands:
+        commands.add_row(
+            inferred_command.purpose,
+            inferred_command.command,
+            f"{inferred_command.confidence:.0%}",
+            inferred_command.source,
         )
-        console.print(Panel(strategy, title="Recommended Analysis Strategy"))
+    console.print(commands)
+
+
+def _display_analysis_strategy(summary: RepositorySummary) -> None:
+    """Render the recommended downstream analysis strategy."""
+    if not summary.analysis_strategy:
+        return
+    strategy = "\n".join(
+        f"{index}. {item}"
+        for index, item in enumerate(summary.analysis_strategy, start=1)
+    )
+    console.print(Panel(strategy, title="Recommended Analysis Strategy"))
 
 
 @app.command()
@@ -208,6 +211,123 @@ def audit(
         return
 
     _display_audit_report(report)
+
+
+@app.command()
+def plan(
+    repository: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to the local Git repository.",
+        ),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print the complete patch plan as JSON.",
+        ),
+    ] = False,
+) -> None:
+    """Generate a deterministic patch plan without modifying files."""
+    planner = PatchPlanner(repository)
+
+    try:
+        patch_plan = planner.plan()
+    except ValueError as exc:
+        console.print(
+            Panel(
+                str(exc),
+                title="Planning failed",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(
+                patch_plan.model_dump(mode="json"),
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    _display_patch_plan(patch_plan)
+
+
+def _display_patch_plan(patch_plan: PatchPlan) -> None:
+    """Render a deterministic, read-only patch plan."""
+    console.print(
+        Panel(
+            f"[bold]{patch_plan.repository_name}[/bold]\n{patch_plan.repository_path}",
+            title="Read-Only Patch Plan",
+        )
+    )
+
+    summary = Table(title="Plan Summary")
+    summary.add_column("Property", style="bold")
+    summary.add_column("Value")
+    summary.add_row("Audit score", f"{patch_plan.source_audit_score}/100")
+    summary.add_row("Findings considered", str(patch_plan.findings_considered))
+    summary.add_row("Patch tasks", str(patch_plan.task_count))
+    summary.add_row("Read only", "Yes" if patch_plan.read_only else "No")
+    summary.add_row("Summary", patch_plan.summary)
+    console.print(summary)
+
+    if patch_plan.warnings:
+        console.print(
+            Panel(
+                "\n".join(f"- {warning}" for warning in patch_plan.warnings),
+                title="Planning Warnings",
+                border_style="yellow",
+            )
+        )
+
+    if not patch_plan.tasks:
+        console.print(
+            Panel(
+                "The current audit produced no patch tasks.",
+                border_style="green",
+            )
+        )
+        return
+
+    tasks = Table(title="Proposed Patch Tasks")
+    tasks.add_column("Priority", justify="right")
+    tasks.add_column("Task")
+    tasks.add_column("Risk")
+    tasks.add_column("Files")
+    tasks.add_column("Rules")
+    tasks.add_column("Human review")
+    for patch_task in patch_plan.tasks:
+        tasks.add_row(
+            str(patch_task.priority),
+            f"{patch_task.task_id}: {patch_task.title}",
+            patch_task.risk.value.upper(),
+            ", ".join(patch_task.affected_files) or "Repository",
+            ", ".join(patch_task.finding_rule_ids),
+            "Required" if patch_task.requires_human_review else "Optional",
+        )
+    console.print(tasks)
+
+    if patch_plan.validation_commands:
+        validations = Table(title="Repository Validation Strategy")
+        validations.add_column("Purpose")
+        validations.add_column("Command")
+        validations.add_column("Source")
+        for validation in patch_plan.validation_commands:
+            validations.add_row(
+                validation.purpose,
+                validation.command,
+                validation.source,
+            )
+        console.print(validations)
 
 
 def _display_audit_report(report: AuditReport) -> None:

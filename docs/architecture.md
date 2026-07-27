@@ -35,7 +35,9 @@ Documentation Agent
 Git Agent
 ```
 
-Only the first deterministic stages are currently implemented. Later stages will be introduced incrementally and tested independently.
+Inspection, profiling, auditing, and deterministic patch planning are currently
+implemented. Later stages will be introduced incrementally and tested
+independently.
 
 ## Layered design
 
@@ -90,13 +92,13 @@ LangGraph is planned for this layer.
 
 Agents make bounded decisions from structured inputs.
 
-Current agent:
+Current agents:
 
 - Code Auditor
+- Patch Planner
 
 Planned agents:
 
-- Patch Planner
 - Patch Writer
 - QA Verifier
 - Documentation Agent

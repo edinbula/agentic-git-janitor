@@ -41,6 +41,10 @@ The project is designed around four principles:
 - Check Git working-tree cleanliness
 - Produce Rich terminal output
 - Export structured JSON reports
+- Generate deterministic, read-only patch plans
+- Group and prioritize findings by severity, category, and file
+- Classify patch risk and human-review requirements
+- Propose validation strategies without executing commands
 - Validate the project with Ruff, mypy, and pytest
 
 ## Planned capabilities
@@ -171,6 +175,13 @@ Run a deterministic audit:
 git-janitor audit .
 ```
 
+Generate a read-only patch plan:
+
+```bash
+git-janitor plan .
+git-janitor plan . --json
+```
+
 Export the report as JSON:
 
 ```bash
@@ -223,8 +234,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.1.0` | Completed | CLI, configuration, logging, repository inspection |
 | `v0.2.0` | Completed | Repository knowledge builder and profiling |
 | `v0.3.0` | Completed | Deterministic code auditor |
-| `v0.3.1` | Current | Open-source project foundation |
-| `v0.4.0` | Planned | Patch planner |
+| `v0.3.1` | Completed | Open-source project foundation |
+| `v0.4.0` | Current | Deterministic, read-only patch planner |
 | `v0.5.0` | Planned | Patch writer |
 | `v0.6.0` | Planned | QA verification loop |
 | `v0.7.0` | Planned | Documentation agent |

@@ -108,6 +108,45 @@ def test_auditor_detects_dirty_working_tree(
     assert any(finding.rule_id == "GIT001" for finding in report.findings)
 
 
+def test_auditor_ignores_patterns_inside_string_literals(
+    audit_repository: Path,
+) -> None:
+    fixture_file = audit_repository / "app" / "fixtures.py"
+    fixture_file.write_text(
+        'todo_marker = "# TODO: fixture text"\n'
+        'eval_example = "eval(value)"\n'
+        'shell_example = "shell=True"\n'
+        "secret_example = \"password = 'example-value'\"\n",
+        encoding="utf-8",
+    )
+    run_git(audit_repository, "add", "app/fixtures.py")
+    run_git(audit_repository, "commit", "-m", "Add scanner fixtures")
+
+    report = CodeAuditor(audit_repository).audit()
+
+    assert report.findings == []
+
+
+def test_auditor_detects_markers_only_in_comments(
+    audit_repository: Path,
+) -> None:
+    marker_file = audit_repository / "app" / "marker.py"
+    marker_file.write_text(
+        'message = "TODO inside a string"\n# TODO: real comment marker\n',
+        encoding="utf-8",
+    )
+    run_git(audit_repository, "add", "app/marker.py")
+    run_git(audit_repository, "commit", "-m", "Add marker example")
+
+    report = CodeAuditor(audit_repository).audit()
+    marker_findings = [
+        finding for finding in report.findings if finding.rule_id == "QLT001"
+    ]
+
+    assert len(marker_findings) == 1
+    assert marker_findings[0].line_number == 2
+
+
 def test_auditor_rejects_non_git_directory(
     tmp_path: Path,
 ) -> None:

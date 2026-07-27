@@ -90,17 +90,37 @@ The JSON output is intended for:
 - Patch planning
 - Report generation
 
-## Planned commands
-
-The following commands are planned and are not yet guaranteed to exist.
-
-### `plan`
+## `plan`
 
 Generate a structured repair plan without modifying files.
 
 ```bash
 git-janitor plan .
 ```
+
+The deterministic planner:
+
+- Groups related findings by category and file
+- Prioritizes critical and high-severity findings
+- Assigns a risk classification
+- Defines a bounded proposed file scope
+- Preserves the audit rule identifiers
+- Proposes validation commands without executing them
+- Requires human review for sensitive tasks
+- Warns about dirty working trees and critical findings
+
+### JSON output
+
+```bash
+git-janitor plan . --json
+```
+
+The plan is always marked `read_only: true`. This command does not write source
+files, apply patches, execute validation commands, commit, or push.
+
+## Planned commands
+
+The following commands are planned and are not yet guaranteed to exist.
 
 ### `patch`
 

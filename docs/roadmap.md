@@ -51,19 +51,19 @@ Plans may change as implementation and safety testing progress.
 - CI workflow
 - Architecture and development documentation
 
-## Planned
-
 ### Sprint 4 — Patch Planner (`v0.4.0`)
 
 - Typed patch-plan models
-- Finding prioritization
-- Group related findings
+- Deterministic finding prioritization
+- Grouping by category and file
 - Risk classification
-- Proposed file scope
+- Proposed file scope and repair actions
 - Validation strategy
-- Read-only planning command
-- Deterministic planner baseline
-- Optional LLM planning layer
+- Human-review requirements
+- Read-only `plan` command
+- Rich and JSON output
+
+## Planned
 
 ### Sprint 5 — Patch Writer (`v0.5.0`)
 

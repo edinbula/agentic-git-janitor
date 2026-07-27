@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import logging
 import re
+import tokenize
+from io import StringIO
 from pathlib import Path
 
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
@@ -35,42 +37,8 @@ _PYTHON_SUFFIX = ".py"
 _MAX_FILE_LINES = 500
 _MAX_FUNCTION_LINES = 80
 
-_SECURITY_PATTERNS: tuple[
-    tuple[str, re.Pattern[str], str, str],
-    ...,
-] = (
-    (
-        "SEC001",
-        re.compile(r"\bshell\s*=\s*True\b"),
-        "subprocess shell execution enabled",
-        "Avoid shell=True. Pass command arguments as a sequence.",
-    ),
-    (
-        "SEC002",
-        re.compile(r"(?<![\w.])eval\s*\("),
-        "dynamic eval() call",
-        "Replace eval() with explicit parsing or a safe alternative.",
-    ),
-    (
-        "SEC003",
-        re.compile(r"(?<![\w.])exec\s*\("),
-        "dynamic exec() call",
-        "Replace exec() with explicit control flow.",
-    ),
-    (
-        "SEC004",
-        re.compile(r"\bpickle\.loads?\s*\("),
-        "unsafe pickle deserialization",
-        "Do not deserialize untrusted pickle data.",
-    ),
-)
-
-_SECRET_PATTERN = re.compile(
-    r"""(?ix)
-    \b(password|secret|api[_-]?key|access[_-]?token)\b
-    \s*=\s*
-    ["'][^"']{4,}["']
-    """
+_SECRET_NAME_PATTERN = re.compile(
+    r"(?i)^(password|secret|api[_-]?key|access[_-]?token)$"
 )
 
 
@@ -166,10 +134,10 @@ class CodeAuditor:
         findings: list[AuditFinding] = []
 
         findings.extend(self._check_syntax(relative_path, source))
-        findings.extend(self._check_markers(relative_path, lines))
+        findings.extend(self._check_markers(relative_path, source))
         findings.extend(self._check_file_size(relative_path, len(lines)))
         findings.extend(self._check_function_size(relative_path, source))
-        findings.extend(self._check_security_patterns(relative_path, lines))
+        findings.extend(self._check_security_patterns(relative_path, source))
 
         return findings
 
@@ -200,16 +168,22 @@ class CodeAuditor:
     @staticmethod
     def _check_markers(
         relative_path: str,
-        lines: list[str],
+        source: str,
     ) -> list[AuditFinding]:
         findings: list[AuditFinding] = []
 
-        for line_number, line in enumerate(lines, start=1):
-            upper_line = line.upper()
+        try:
+            tokens = tokenize.generate_tokens(StringIO(source).readline)
+            comments = [token for token in tokens if token.type == tokenize.COMMENT]
+        except (IndentationError, tokenize.TokenError):
+            return findings
+
+        for comment in comments:
+            upper_comment = comment.string.upper()
             marker = None
-            if "TODO" in upper_line:
+            if "TODO" in upper_comment:
                 marker = "TODO"
-            elif "FIXME" in upper_line:
+            elif "FIXME" in upper_comment:
                 marker = "FIXME"
 
             if marker is not None:
@@ -217,11 +191,11 @@ class CodeAuditor:
                     AuditFinding(
                         rule_id="QLT001",
                         title=f"{marker} marker found",
-                        description=line.strip(),
+                        description=comment.string.strip(),
                         category=FindingCategory.QUALITY,
                         severity=FindingSeverity.LOW,
                         file_path=relative_path,
-                        line_number=line_number,
+                        line_number=comment.start[0],
                         recommendation=(
                             "Resolve the marker or convert it into a tracked issue."
                         ),
@@ -299,50 +273,129 @@ class CodeAuditor:
     @staticmethod
     def _check_security_patterns(
         relative_path: str,
-        lines: list[str],
+        source: str,
     ) -> list[AuditFinding]:
+        try:
+            tree = ast.parse(source, filename=relative_path)
+        except SyntaxError:
+            return []
+
         findings: list[AuditFinding] = []
 
-        for line_number, line in enumerate(lines, start=1):
-            stripped = line.strip()
-            if stripped.startswith("#"):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                finding = CodeAuditor._security_call_finding(
+                    relative_path,
+                    source,
+                    node,
+                )
+                if finding is not None:
+                    findings.append(finding)
                 continue
 
-            for rule_id, pattern, title, recommendation in _SECURITY_PATTERNS:
-                if pattern.search(line):
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                target_names = CodeAuditor._assignment_target_names(node)
+                value = node.value
+                if (
+                    target_names
+                    and isinstance(value, ast.Constant)
+                    and isinstance(value.value, str)
+                    and len(value.value) >= 4
+                    and any(
+                        _SECRET_NAME_PATTERN.fullmatch(name) for name in target_names
+                    )
+                ):
                     findings.append(
                         AuditFinding(
-                            rule_id=rule_id,
-                            title=title,
-                            description=stripped,
+                            rule_id="SEC005",
+                            title="Possible hard-coded secret",
+                            description=(
+                                "A secret-like variable appears to contain "
+                                "a literal value."
+                            ),
                             category=FindingCategory.SECURITY,
-                            severity=FindingSeverity.HIGH,
+                            severity=FindingSeverity.CRITICAL,
                             file_path=relative_path,
-                            line_number=line_number,
-                            recommendation=recommendation,
+                            line_number=node.lineno,
+                            recommendation=(
+                                "Move secrets to environment variables or "
+                                "a secret manager, then rotate exposed values."
+                            ),
                         )
                     )
 
-            if _SECRET_PATTERN.search(line):
-                findings.append(
-                    AuditFinding(
-                        rule_id="SEC005",
-                        title="Possible hard-coded secret",
-                        description=(
-                            "A secret-like variable appears to contain a literal value."
-                        ),
-                        category=FindingCategory.SECURITY,
-                        severity=FindingSeverity.CRITICAL,
-                        file_path=relative_path,
-                        line_number=line_number,
-                        recommendation=(
-                            "Move secrets to environment variables or "
-                            "a secret manager, then rotate exposed values."
-                        ),
-                    )
-                )
-
         return findings
+
+    @staticmethod
+    def _security_call_finding(
+        relative_path: str,
+        source: str,
+        node: ast.Call,
+    ) -> AuditFinding | None:
+        rule: tuple[str, str, str] | None = None
+
+        if isinstance(node.func, ast.Name) and node.func.id == "eval":
+            rule = (
+                "SEC002",
+                "dynamic eval() call",
+                "Replace eval() with explicit parsing or a safe alternative.",
+            )
+        elif isinstance(node.func, ast.Name) and node.func.id == "exec":
+            rule = (
+                "SEC003",
+                "dynamic exec() call",
+                "Replace exec() with explicit control flow.",
+            )
+        elif (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "pickle"
+            and node.func.attr in {"load", "loads"}
+        ):
+            rule = (
+                "SEC004",
+                "unsafe pickle deserialization",
+                "Do not deserialize untrusted pickle data.",
+            )
+        elif any(
+            keyword.arg == "shell"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value is True
+            for keyword in node.keywords
+        ):
+            rule = (
+                "SEC001",
+                "subprocess shell execution enabled",
+                "Avoid shell=True. Pass command arguments as a sequence.",
+            )
+
+        if rule is None:
+            return None
+
+        rule_id, title, recommendation = rule
+        return AuditFinding(
+            rule_id=rule_id,
+            title=title,
+            description=ast.get_source_segment(source, node) or title,
+            category=FindingCategory.SECURITY,
+            severity=FindingSeverity.HIGH,
+            file_path=relative_path,
+            line_number=node.lineno,
+            recommendation=recommendation,
+        )
+
+    @staticmethod
+    def _assignment_target_names(
+        node: ast.Assign | ast.AnnAssign,
+    ) -> list[str]:
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        names: list[str] = []
+        for target in targets:
+            if isinstance(target, ast.Name):
+                names.append(target.id)
+            elif isinstance(target, ast.Attribute):
+                names.append(target.attr)
+        return names
 
     @staticmethod
     def _audit_git_health(repo: Repo) -> list[AuditFinding]:

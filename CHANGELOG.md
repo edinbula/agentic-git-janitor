@@ -6,23 +6,42 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Planned
+
+- Isolated patch generation
+- Unified diff output
+- Patch approval workflow
+
+## [0.4.0] - 2026-07-27
+
 ### Added
 
 - Repository profiler integration with the inspection workflow
 - Source-line, configuration-file, and documentation-file inventory
-- Rich CLI output for architecture, frameworks, tooling, entry points, inferred commands, and analysis strategy
-- Direct tests for repository profiling, profiler integration, and CLI output
+- Rich inspection output for architecture, frameworks, tooling, entry points,
+  inferred commands, and analysis strategy
+- Direct tests for repository profiling, profiler integration, and inspection
+  CLI output
+- Typed patch plan, patch task, risk, and validation-command models
+- Deterministic patch planner
+- Finding grouping by category and file
+- Severity-based prioritization and risk classification
+- Bounded proposed file scope and repair actions
+- Human-review requirements for sensitive findings
+- Git-state findings represented as safety warnings instead of patch tasks
+- Repository and task-level validation strategies
+- Read-only `plan` command with Rich and JSON output
+- AST-based security detection that ignores examples inside string literals
+- Comment-token marker detection that ignores TODO/FIXME text in strings
+- Planner model, behavior, integration, and CLI tests
+- Regression tests for scanner false positives in source fixtures
 
 ### Changed
 
-- Package and runtime versions now consistently report `0.3.1`
+- Package and runtime versions now report `0.4.0`
 - CI now runs pytest with coverage enforcement
-
-### Planned
-
-- Structured patch planning
-- Finding prioritization
-- Repair-plan validation commands
+- Repository inspection rendering is split into focused helper functions
+- Architecture, CLI, roadmap, and README documentation describe the planner
 
 ## [0.3.1] - 2026-07-26
 
