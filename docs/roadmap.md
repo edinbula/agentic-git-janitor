@@ -63,17 +63,20 @@ Plans may change as implementation and safety testing progress.
 - Read-only `plan` command
 - Rich and JSON output
 
-## Planned
-
 ### Sprint 5 — Patch Writer (`v0.5.0`)
 
-- Isolated patch workspace
-- Patch proposal generation
-- Unified diff output
-- File-scope enforcement
-- Human approval gate
-- No direct push
-- Patch persistence
+- Typed patch request and proposal models
+- Explicit full-file change requests
+- Isolated tracked-file workspaces
+- Unified diff generation and persistence
+- Strict task file-scope enforcement
+- Path traversal and symlink rejection
+- Configurable file and line limits
+- Approval-required proposal status
+- Original source integrity verification
+- Rich and JSON CLI output
+
+## Planned
 
 ### Sprint 6 — QA Verification (`v0.6.0`)
 

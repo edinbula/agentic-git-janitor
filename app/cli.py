@@ -5,15 +5,18 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
 from app.agents.code_auditor import CodeAuditor
 from app.agents.patch_planner import PatchPlanner
+from app.agents.patch_writer import PatchWriter
 from app.config.settings import get_settings
 from app.logging_config import configure_logging
 from app.models.audit import AuditReport, FindingSeverity
+from app.models.patch import PatchProposal, PatchRequest
 from app.models.plan import PatchPlan
 from app.models.repository import RepositorySummary
 from app.services.repository_inspector import RepositoryInspector
@@ -328,6 +331,102 @@ def _display_patch_plan(patch_plan: PatchPlan) -> None:
                 validation.source,
             )
         console.print(validations)
+
+
+@app.command()
+def patch(
+    repository: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to the clean local Git repository.",
+        ),
+    ],
+    request_file: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+            help="JSON file containing a task ID and proposed file contents.",
+        ),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print proposal metadata as JSON.",
+        ),
+    ] = False,
+) -> None:
+    """Generate an isolated unified-diff proposal without applying it."""
+    try:
+        request = PatchRequest.model_validate_json(
+            request_file.read_text(encoding="utf-8")
+        )
+        proposal = PatchWriter(repository).create_proposal(request)
+    except (OSError, ValidationError, ValueError, RuntimeError) as exc:
+        console.print(
+            Panel(
+                str(exc),
+                title="Patch generation failed",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(
+                proposal.model_dump(mode="json"),
+                ensure_ascii=False,
+            )
+        )
+        return
+
+    _display_patch_proposal(proposal)
+
+
+def _display_patch_proposal(proposal: PatchProposal) -> None:
+    """Render an isolated patch proposal and approval warning."""
+    summary = Table(title="Patch Proposal")
+    summary.add_column("Property", style="bold")
+    summary.add_column("Value")
+    summary.add_row("Proposal", proposal.proposal_id)
+    summary.add_row("Task", proposal.task_id)
+    summary.add_row("Status", proposal.status.value)
+    summary.add_row("Files", str(len(proposal.files)))
+    summary.add_row("Additions", str(proposal.additions))
+    summary.add_row("Deletions", str(proposal.deletions))
+    summary.add_row("Workspace", proposal.workspace_path)
+    summary.add_row("Patch artifact", proposal.patch_path)
+    summary.add_row("Metadata", proposal.metadata_path)
+    summary.add_row(
+        "Original unchanged",
+        "Yes" if proposal.original_files_unchanged else "No",
+    )
+    console.print(summary)
+    console.print(
+        Panel(
+            proposal.unified_diff,
+            title="Unified Diff",
+            border_style="cyan",
+        )
+    )
+    console.print(
+        Panel(
+            "This proposal is awaiting human approval. It has not been "
+            "applied, committed, or pushed.",
+            title="Approval Required",
+            border_style="yellow",
+        )
+    )
 
 
 def _display_audit_report(report: AuditReport) -> None:

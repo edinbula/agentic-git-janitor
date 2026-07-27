@@ -24,7 +24,7 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.4.0" in result.stdout
+    assert "0.5.0" in result.stdout
 
 
 def test_inspect_command_displays_profiled_repository(tmp_path: Path) -> None:
@@ -99,3 +99,42 @@ def test_plan_command_supports_json_output(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert '"read_only": true' in result.stdout
     assert '"tasks"' in result.stdout
+
+
+def test_patch_command_generates_unapplied_proposal(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    run_git(repository, "init")
+    run_git(repository, "config", "user.email", "tests@example.com")
+    run_git(repository, "config", "user.name", "Test User")
+    (repository / "app").mkdir()
+    (repository / "tests").mkdir()
+    (repository / "app" / "main.py").write_text(
+        "# TODO: replace placeholder\ndef main() -> str:\n    return 'ready'\n",
+        encoding="utf-8",
+    )
+    (repository / "tests" / "test_main.py").write_text(
+        "def test_placeholder() -> None:\n    assert True\n",
+        encoding="utf-8",
+    )
+    run_git(repository, "add", ".")
+    run_git(repository, "commit", "-m", "Initial commit")
+    request_file = tmp_path / "request.json"
+    request_file.write_text(
+        '{"task_id":"PLAN-001","changes":[{"path":"app/main.py",'
+        '"content":"def main() -> str:\\n    return \'ready\'\\n"}]}',
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["patch", str(repository), str(request_file)],
+    )
+
+    assert result.exit_code == 0
+    assert "awaiting_approval" in result.stdout
+    assert "Original unchanged" in result.stdout
+    assert "Approval Required" in result.stdout
+    assert "# TODO: replace placeholder" in (repository / "app" / "main.py").read_text(
+        encoding="utf-8"
+    )

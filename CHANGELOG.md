@@ -8,9 +8,31 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Isolated patch generation
-- Unified diff output
-- Patch approval workflow
+- Patch validation execution
+- QA result models
+- Bounded repair and retry workflow
+
+## [0.5.0] - 2026-07-27
+
+### Added
+
+- Typed patch request, file change, file summary, and proposal models
+- Isolated patch writer that copies only tracked regular files
+- Unified diff and JSON metadata persistence
+- Strict plan-task file-scope enforcement
+- Path traversal, duplicate file, symlink, and empty patch rejection
+- Configurable maximum changed-file and patch-line limits
+- Original source integrity verification
+- Approval-required proposal state
+- `patch` command with Rich and JSON output
+- Patch writer safety, integration, and CLI tests
+
+### Safety
+
+- Patch generation requires a clean repository
+- Source files are never modified by the patch command
+- Generated proposals are not applied, committed, or pushed
+- Failed proposals clean up their isolated workspace
 
 ## [0.4.0] - 2026-07-27
 

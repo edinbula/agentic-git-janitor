@@ -45,6 +45,9 @@ The project is designed around four principles:
 - Group and prioritize findings by severity, category, and file
 - Classify patch risk and human-review requirements
 - Propose validation strategies without executing commands
+- Generate isolated unified-diff patch proposals from explicit JSON requests
+- Enforce task file scope, safe paths, and configurable patch limits
+- Preserve original repository files behind an approval gate
 - Validate the project with Ruff, mypy, and pytest
 
 ## Planned capabilities
@@ -182,6 +185,12 @@ git-janitor plan .
 git-janitor plan . --json
 ```
 
+Generate an isolated patch proposal:
+
+```bash
+git-janitor patch . request.json
+```
+
 Export the report as JSON:
 
 ```bash
@@ -235,8 +244,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.2.0` | Completed | Repository knowledge builder and profiling |
 | `v0.3.0` | Completed | Deterministic code auditor |
 | `v0.3.1` | Completed | Open-source project foundation |
-| `v0.4.0` | Current | Deterministic, read-only patch planner |
-| `v0.5.0` | Planned | Patch writer |
+| `v0.4.0` | Completed | Deterministic, read-only patch planner |
+| `v0.5.0` | Current | Isolated patch writer and unified diffs |
 | `v0.6.0` | Planned | QA verification loop |
 | `v0.7.0` | Planned | Documentation agent |
 | `v0.8.0` | Planned | Dashboard and provider integrations |

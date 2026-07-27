@@ -118,17 +118,40 @@ git-janitor plan . --json
 The plan is always marked `read_only: true`. This command does not write source
 files, apply patches, execute validation commands, commit, or push.
 
-## Planned commands
-
-The following commands are planned and are not yet guaranteed to exist.
-
-### `patch`
+## `patch`
 
 Generate proposed patches in an isolated workspace.
 
 ```bash
-git-janitor patch .
+git-janitor patch REPOSITORY REQUEST.json
 ```
+
+The request uses complete replacement content for files within one planned
+task:
+
+```json
+{
+  "task_id": "PLAN-001",
+  "changes": [
+    {
+      "path": "app/example.py",
+      "content": "def example() -> str:\n    return \"ready\"\n"
+    }
+  ]
+}
+```
+
+The command requires a clean repository, enforces the planned file scope,
+writes only to an isolated workspace, and persists `.patch` and `.json`
+artifacts. The original source is not changed.
+
+```bash
+git-janitor patch . request.json --json
+```
+
+## Planned commands
+
+The following commands are planned and are not yet guaranteed to exist.
 
 ### `verify`
 
