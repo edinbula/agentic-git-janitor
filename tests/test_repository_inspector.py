@@ -65,9 +65,7 @@ def test_inspector_detects_python_repository(sample_repository: Path) -> None:
     assert summary.package_managers == ["pip / PEP 517"]
     assert summary.test_frameworks == ["pytest"]
     assert "sample -> app.main:hello" in summary.entry_points
-    assert any(
-        command.command == "pytest" for command in summary.inferred_commands
-    )
+    assert any(command.command == "pytest" for command in summary.inferred_commands)
     assert "Run pytest for behavioral validation" in summary.analysis_strategy
     assert summary.changed_files == []
 
