@@ -15,6 +15,7 @@ from app.agents.draft_agent import DraftAgent
 from app.agents.patch_planner import PatchPlanner
 from app.agents.patch_writer import PatchWriter
 from app.agents.qa_verifier import QAVerifier
+from app.approval_cli import apply_proposal, approve, reject
 from app.config.settings import get_settings
 from app.logging_config import configure_logging
 from app.models.patch import PatchRequest
@@ -37,6 +38,9 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+app.command()(approve)
+app.command()(reject)
+app.command("apply")(apply_proposal)
 
 
 @app.callback()

@@ -49,6 +49,8 @@ class PatchProposal(BaseModel):
     additions: int = Field(ge=0)
     deletions: int = Field(ge=0)
     unified_diff: str
+    base_commit: str = ""
+    patch_sha256: str = ""
     status: PatchStatus = PatchStatus.AWAITING_APPROVAL
     requires_approval: bool = True
     approved: bool = False

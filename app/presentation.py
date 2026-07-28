@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from app.models.approval import ApplicationReport, ProposalDecision
 from app.models.audit import AuditReport, FindingSeverity
 from app.models.documentation import DocumentationReport
 from app.models.draft import PatchDraft
@@ -317,6 +318,45 @@ def display_patch_draft(draft: PatchDraft) -> None:
             "command. No repository source, commit, or remote was changed.",
             title="Human Review Required",
             border_style="yellow",
+        )
+    )
+
+
+def display_proposal_decision(decision: ProposalDecision) -> None:
+    """Render an immutable approval or rejection record."""
+    table = Table(title="Proposal Decision")
+    table.add_column("Property", style="bold")
+    table.add_column("Value")
+    table.add_row("Proposal", decision.proposal_id)
+    table.add_row("Decision", decision.decision.value)
+    table.add_row("Base commit", decision.base_commit)
+    table.add_row("Patch SHA-256", decision.patch_sha256)
+    table.add_row("Reason", decision.reason or "Not provided")
+    table.add_row("Record", decision.record_path)
+    console.print(table)
+
+
+def display_application_report(report: ApplicationReport) -> None:
+    """Render a recoverable local application result."""
+    table = Table(title="Patch Application")
+    table.add_column("Property", style="bold")
+    table.add_column("Value")
+    table.add_row("Proposal", report.proposal_id)
+    table.add_row("Status", report.status.value)
+    table.add_row("Original branch", report.original_branch)
+    table.add_row("Application branch", report.application_branch)
+    table.add_row("Files", ", ".join(report.affected_files))
+    table.add_row("Backup", report.backup_path)
+    table.add_row("Commit", report.commit_sha or "Not created")
+    table.add_row("Pushed", "No")
+    table.add_row("Report", report.report_path)
+    console.print(table)
+    console.print(
+        Panel(
+            "The approved files were applied only on the local application "
+            "branch. No remote operation was performed.",
+            title="Local Change Applied",
+            border_style="green",
         )
     )
 

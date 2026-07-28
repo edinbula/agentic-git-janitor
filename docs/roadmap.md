@@ -110,8 +110,6 @@ Plans may change as implementation and safety testing progress.
 - Persisted request and metadata artifacts
 - Rich and JSON provider and draft output
 
-## Planned
-
 ### Sprint 9 — Approval and Safe Application (`v0.9.0`)
 
 - Explicit approve and reject states
@@ -120,6 +118,8 @@ Plans may change as implementation and safety testing progress.
 - Recoverable branch or backup behavior
 - Optional local commit creation
 - No automatic remote push
+
+## Planned
 
 ### Sprint 10 — Stable Release (`v1.0.0`)
 

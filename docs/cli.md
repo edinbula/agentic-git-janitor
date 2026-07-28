@@ -210,6 +210,39 @@ After review, the request can enter the existing isolated patch workflow:
 git-janitor patch REPOSITORY drafts/DRAFT-IDENTIFIER.request.json
 ```
 
+## `approve`
+
+Record approval for a proposal that has a passing verification report.
+
+```bash
+git-janitor approve REPOSITORY PATCH-IDENTIFIER \
+  --reason "Reviewed and verified"
+```
+
+The decision is bound to the proposal's base commit and patch SHA-256 checksum.
+
+## `reject`
+
+Record an explicit rejection without changing repository sources.
+
+```bash
+git-janitor reject REPOSITORY PATCH-IDENTIFIER \
+  --reason "Change is not required"
+```
+
+## `apply`
+
+Apply an approved proposal on a new recoverable local branch.
+
+```bash
+git-janitor apply REPOSITORY PATCH-IDENTIFIER --yes
+git-janitor apply REPOSITORY PATCH-IDENTIFIER --yes --commit
+```
+
+Application requires a clean repository whose HEAD still matches the proposal.
+It revalidates proposal integrity and file scope, creates backups, and persists
+an application report. The optional commit is local. No remote push occurs.
+
 ## Planned commands
 
 The following commands are planned and are not yet guaranteed to exist.

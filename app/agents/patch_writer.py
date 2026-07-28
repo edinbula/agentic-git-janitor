@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import shutil
 from pathlib import Path, PurePosixPath
@@ -48,6 +49,7 @@ class PatchWriter:
             raise ValueError(f"Patch task '{request.task_id}' was not found.")
 
         changes = self._validate_changes(request, task)
+        base_commit = Repo(self.repository_path).head.commit.hexsha
         proposal_id = f"PATCH-{uuid4().hex[:12].upper()}"
         workspace = self._output_path(self.settings.workspace_directory) / proposal_id
         patches_directory = self._output_path(self.settings.patches_directory)
@@ -83,6 +85,8 @@ class PatchWriter:
                 additions=sum(item.additions for item in summaries),
                 deletions=sum(item.deletions for item in summaries),
                 unified_diff=diff_text,
+                base_commit=base_commit,
+                patch_sha256=hashlib.sha256(diff_text.encode("utf-8")).hexdigest(),
             )
             metadata_path.write_text(
                 json.dumps(

@@ -24,6 +24,9 @@ build/
 reports/
 documentation/
 drafts/
+approvals/
+applications/
+.janitor-backups/
 *.audit.json
 *.plan.json
 

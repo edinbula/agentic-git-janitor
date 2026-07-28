@@ -35,13 +35,12 @@ QA Verifier
 Documentation Agent
       |
       v
-Git Agent
+Approval Agent
 ```
 
 Inspection, profiling, auditing, deterministic patch planning, isolated patch
-proposal generation, QA verification, and documentation artifact generation
-are currently implemented. Later stages will be introduced incrementally and
-tested independently.
+proposal generation, QA verification, documentation, explicit decisions, and
+recoverable local application are currently implemented.
 
 ## Layered design
 
@@ -104,10 +103,7 @@ Current agents:
 - Patch Writer
 - QA Verifier
 - Documentation Agent
-
-Planned agents:
-
-- Git Agent
+- Approval Agent
 
 Agents should not directly perform unrestricted system operations. They should request actions through validated tools.
 
@@ -160,6 +156,8 @@ DocumentationReport
 GenerationRequest
 GenerationResponse
 PatchDraft
+ProposalDecision
+ApplicationReport
 ```
 
 Typed data provides:
@@ -196,6 +194,14 @@ Inspection, profiling, and auditing must not modify the repository.
 Patches are written to an isolated workspace. QA and documentation stages
 consume persisted proposal metadata and never apply changes to the user's
 working tree.
+
+### Approval and application
+
+Approval requires a passing verification report and records the proposal base
+commit and patch checksum. Application revalidates those values, requires a
+clean repository at the same commit, writes backups, and applies only the
+approved file scope on a new local branch. An optional commit remains local;
+the agent never pushes.
 
 ### Provider isolation
 

@@ -56,16 +56,15 @@ The project is designed around four principles:
 - Check local Ollama availability and installed models
 - Generate bounded AI patch-request drafts from deterministic plan tasks
 - Validate provider output against typed schemas and planned file scope
+- Record explicit approval or rejection decisions for patch proposals
+- Bind approval to the proposal base commit and patch SHA-256 checksum
+- Apply approved, verified proposals on recoverable local branches
+- Create optional local commits without ever pushing automatically
 - Validate the project with Ruff, mypy, and pytest
 
 ## Planned capabilities
 
-- Structured patch planning
-- AI-assisted repair proposals
-- Isolated patch workspaces
-- QA verification loops
-- Documentation and changelog generation
-- Optional Git commit assistance
+- Stable end-to-end repair workflow
 - Multi-provider model support
 - Streamlit dashboard
 - Pull request generation
@@ -219,6 +218,18 @@ git-janitor draft . PLAN-001 --provider ollama --model qwen2.5-coder:7b
 git-janitor patch . drafts/DRAFT-IDENTIFIER.request.json
 ```
 
+Approve and safely apply a verified proposal:
+
+```bash
+git-janitor approve . PATCH-IDENTIFIER --reason "Reviewed and verified"
+git-janitor apply . PATCH-IDENTIFIER --yes
+git-janitor apply . PATCH-IDENTIFIER --yes --commit
+```
+
+Application requires a clean repository at the proposal's original commit.
+It creates a new local `janitor/patch-...` branch, writes backups, and never
+pushes to a remote.
+
 Export the report as JSON:
 
 ```bash
@@ -276,7 +287,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.5.0` | Completed | Isolated patch writer and unified diffs |
 | `v0.6.0` | Completed | Safe isolated QA verification |
 | `v0.7.0` | Completed | Deterministic documentation agent |
-| `v0.8.0` | Current | Local providers and bounded AI drafts |
+| `v0.8.0` | Completed | Local providers and bounded AI drafts |
+| `v0.9.0` | Current | Explicit approval and safe local application |
 | `v1.0.0` | Planned | Stable safety-reviewed workflow |
 
 See the full [Roadmap](docs/roadmap.md).
@@ -289,12 +301,14 @@ Current safeguards include:
 
 - No automatic push
 - No force push
-- No branch deletion
+- No deletion of user-created branches
 - No history rewriting
 - No destructive Git commands
 - No automatic repository modification during inspection or audit
 - Structured findings before any future patch generation
-- Human approval before applying future changes
+- Passing QA and explicit human approval before application
+- Base-commit and patch-checksum integrity checks
+- Recoverable local application branch and backups
 
 Security concerns should be reported according to [SECURITY.md](SECURITY.md).
 

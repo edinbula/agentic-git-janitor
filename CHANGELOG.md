@@ -8,8 +8,27 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Explicit approval and safe patch application
 - Real-repository compatibility testing
+
+## [0.9.0] - 2026-07-28
+
+### Added
+
+- Typed approval, rejection, and application lifecycle models
+- Explicit `approve`, `reject`, and `apply` commands with Rich and JSON output
+- Proposal base-commit and patch SHA-256 integrity metadata
+- Passing-verification requirement before approval
+- Recoverable application branches and per-file backups
+- Optional local commit creation and persisted application reports
+- Approval Agent unit and safety tests
+
+### Safety
+
+- Application requires an explicit approval record and `--yes` confirmation
+- Repository HEAD must match the proposal base commit and remain clean
+- Patch artifacts, decisions, workspaces, and file scope are revalidated
+- Failures restore original files and remove the temporary application branch
+- Agentic Git Janitor never pushes an applied proposal
 
 ## [0.8.0] - 2026-07-28
 

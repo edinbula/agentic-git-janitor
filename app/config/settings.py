@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     patches_directory: Path = Field(default=Path("patches"))
     documentation_directory: Path = Field(default=Path("documentation"))
     drafts_directory: Path = Field(default=Path("drafts"))
+    approvals_directory: Path = Field(default=Path("approvals"))
+    applications_directory: Path = Field(default=Path("applications"))
+    backups_directory: Path = Field(default=Path(".janitor-backups"))
     workspace_directory: Path = Field(default=Path(".janitor-workspaces"))
 
     command_timeout_seconds: int = Field(default=120, ge=1, le=3600)

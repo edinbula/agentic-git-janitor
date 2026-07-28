@@ -26,7 +26,21 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.8.0" in result.stdout
+    assert "0.9.0" in result.stdout
+
+
+def test_approval_commands_are_registered() -> None:
+    for command in ("approve", "reject", "apply"):
+        result = runner.invoke(app, [command, "--help"])
+
+        assert result.exit_code == 0
+
+
+def test_apply_requires_explicit_confirmation(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["apply", str(tmp_path), "PATCH-ABC123"])
+
+    assert result.exit_code == 1
+    assert "requires explicit confirmation with --yes" in result.stdout
 
 
 def test_inspect_command_displays_profiled_repository(tmp_path: Path) -> None:
