@@ -149,17 +149,22 @@ artifacts. The original source is not changed.
 git-janitor patch . request.json --json
 ```
 
-## Planned commands
-
-The following commands are planned and are not yet guaranteed to exist.
-
-### `verify`
+## `verify`
 
 Run configured validation commands against a proposed patch.
 
 ```bash
-git-janitor verify .
+git-janitor verify REPOSITORY PATCH-IDENTIFIER
+git-janitor verify REPOSITORY PATCH-IDENTIFIER --json
 ```
+
+Validation executes only in the proposal's isolated workspace. Commands are
+parsed without a shell, checked against the executable allowlist, constrained
+by a timeout, and captured in a persisted QA report.
+
+## Planned commands
+
+The following commands are planned and are not yet guaranteed to exist.
 
 ### `repair`
 

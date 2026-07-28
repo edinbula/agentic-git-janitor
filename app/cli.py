@@ -13,12 +13,14 @@ from rich.table import Table
 from app.agents.code_auditor import CodeAuditor
 from app.agents.patch_planner import PatchPlanner
 from app.agents.patch_writer import PatchWriter
+from app.agents.qa_verifier import QAVerifier
 from app.config.settings import get_settings
 from app.logging_config import configure_logging
 from app.models.audit import AuditReport, FindingSeverity
 from app.models.patch import PatchProposal, PatchRequest
 from app.models.plan import PatchPlan
 from app.models.repository import RepositorySummary
+from app.models.verification import VerificationReport
 from app.services.repository_inspector import RepositoryInspector
 
 app = typer.Typer(
@@ -427,6 +429,75 @@ def _display_patch_proposal(proposal: PatchProposal) -> None:
             border_style="yellow",
         )
     )
+
+
+@app.command()
+def verify(
+    repository: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to the original Git repository.",
+        ),
+    ],
+    proposal_id: Annotated[
+        str,
+        typer.Argument(help="Persisted PATCH identifier to verify."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print the verification report as JSON."),
+    ] = False,
+) -> None:
+    """Run allowlisted QA commands inside an isolated patch workspace."""
+    try:
+        report = QAVerifier(repository).verify(proposal_id)
+    except (OSError, ValidationError, ValueError, RuntimeError) as exc:
+        console.print(Panel(str(exc), title="Verification failed", border_style="red"))
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(report.model_dump(mode="json"), ensure_ascii=False)
+        )
+        return
+    _display_verification_report(report)
+
+
+def _display_verification_report(report: VerificationReport) -> None:
+    """Render command-level QA results."""
+    summary = Table(title="QA Verification")
+    summary.add_column("Property", style="bold")
+    summary.add_column("Value")
+    summary.add_row("Proposal", report.proposal_id)
+    summary.add_row("Passed", "Yes" if report.passed else "No")
+    summary.add_row("Workspace", report.workspace_path)
+    summary.add_row("Report", report.report_path)
+    summary.add_row(
+        "Original untouched",
+        "Yes" if report.original_repository_untouched else "No",
+    )
+    console.print(summary)
+
+    results = Table(title="Validation Results")
+    results.add_column("Purpose")
+    results.add_column("Command")
+    results.add_column("Status")
+    results.add_column("Exit")
+    results.add_column("Seconds", justify="right")
+    for result in report.results:
+        results.add_row(
+            result.purpose,
+            result.command,
+            result.status.value.upper(),
+            "" if result.exit_code is None else str(result.exit_code),
+            f"{result.duration_seconds:.2f}",
+        )
+    console.print(results)
 
 
 def _display_audit_report(report: AuditReport) -> None:

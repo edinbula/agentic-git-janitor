@@ -35,8 +35,7 @@ Documentation Agent
 Git Agent
 ```
 
-Inspection, profiling, auditing, deterministic patch planning, and isolated
-patch proposal generation are currently implemented. Later stages will be
+Inspection, profiling, auditing, deterministic patch planning, isolated patch proposal generation, and QA verification are currently implemented. Later stages will be
 introduced incrementally and tested independently.
 
 ## Layered design
@@ -97,10 +96,9 @@ Current agents:
 - Code Auditor
 - Patch Planner
 - Patch Writer
-
+- QA Verifier
 Planned agents:
 
-- QA Verifier
 - Documentation Agent
 - Git Agent
 

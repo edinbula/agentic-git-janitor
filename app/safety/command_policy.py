@@ -21,4 +21,6 @@ class CommandPolicy:
     def is_allowed(self, executable: str) -> bool:
         """Return whether an executable is allowlisted."""
         normalized = executable.strip().lower()
+        if normalized.endswith(".exe"):
+            normalized = normalized[:-4]
         return normalized in self.allowed_executables

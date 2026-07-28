@@ -48,6 +48,8 @@ The project is designed around four principles:
 - Generate isolated unified-diff patch proposals from explicit JSON requests
 - Enforce task file scope, safe paths, and configurable patch limits
 - Preserve original repository files behind an approval gate
+- Verify proposals with allowlisted commands inside isolated workspaces
+- Capture command outcomes, timeouts, output, and persisted QA reports
 - Validate the project with Ruff, mypy, and pytest
 
 ## Planned capabilities
@@ -191,6 +193,12 @@ Generate an isolated patch proposal:
 git-janitor patch . request.json
 ```
 
+Verify a persisted proposal:
+
+```bash
+git-janitor verify . PATCH-IDENTIFIER
+```
+
 Export the report as JSON:
 
 ```bash
@@ -245,8 +253,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.3.0` | Completed | Deterministic code auditor |
 | `v0.3.1` | Completed | Open-source project foundation |
 | `v0.4.0` | Completed | Deterministic, read-only patch planner |
-| `v0.5.0` | Current | Isolated patch writer and unified diffs |
-| `v0.6.0` | Planned | QA verification loop |
+| `v0.5.0` | Completed | Isolated patch writer and unified diffs |
+| `v0.6.0` | Current | Safe isolated QA verification |
 | `v0.7.0` | Planned | Documentation agent |
 | `v0.8.0` | Planned | Dashboard and provider integrations |
 | `v1.0.0` | Planned | Stable safety-reviewed workflow |

@@ -12,6 +12,20 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 - QA result models
 - Bounded repair and retry workflow
 
+## [0.6.0] - 2026-07-28
+
+### Added
+
+- Typed command results and verification reports
+- Isolated QA verifier for persisted patch proposals
+- Allowlisted subprocess execution with `shell=False`
+- Configurable command timeouts and bounded output capture
+- Passed, failed, timed-out, and blocked command states
+- Original repository integrity verification
+- Persisted JSON verification reports
+- Rich and JSON `verify` command output
+- QA verifier and Windows executable-policy tests
+
 ## [0.5.0] - 2026-07-27
 
 ### Added

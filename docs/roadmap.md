@@ -76,17 +76,17 @@ Plans may change as implementation and safety testing progress.
 - Original source integrity verification
 - Rich and JSON CLI output
 
-## Planned
-
 ### Sprint 6 — QA Verification (`v0.6.0`)
 
-- Configurable validation commands
-- Ruff, mypy, and pytest execution
-- Command allowlist
-- Timeouts
-- Validation result models
-- Retry and repair loop
-- Maximum iteration limits
+- Typed validation and report models
+- Isolated workspace command execution
+- Executable allowlist and no-shell policy
+- Configurable timeouts
+- Captured exit codes and bounded output
+- Persisted QA reports
+- Rich and JSON `verify` output
+
+## Planned
 
 ### Sprint 7 — Documentation Agent (`v0.7.0`)
 
