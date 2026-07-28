@@ -26,6 +26,10 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 - Rich and JSON `verify` command output
 - QA verifier and Windows executable-policy tests
 
+### Changed
+
+- Rich rendering moved from the CLI into a dedicated presentation module
+
 ## [0.5.0] - 2026-07-27
 
 ### Added
