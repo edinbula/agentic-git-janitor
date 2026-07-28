@@ -50,6 +50,9 @@ The project is designed around four principles:
 - Preserve original repository files behind an approval gate
 - Verify proposals with allowlisted commands inside isolated workspaces
 - Capture command outcomes, timeouts, output, and persisted QA reports
+- Generate deterministic Markdown change summaries from patch proposals
+- Include optional QA outcomes in persisted documentation metadata
+- Preserve repository sources behind a documentation review gate
 - Validate the project with Ruff, mypy, and pytest
 
 ## Planned capabilities
@@ -199,6 +202,12 @@ Verify a persisted proposal:
 git-janitor verify . PATCH-IDENTIFIER
 ```
 
+Generate reviewable documentation for a persisted proposal:
+
+```bash
+git-janitor document . PATCH-IDENTIFIER
+```
+
 Export the report as JSON:
 
 ```bash
@@ -254,8 +263,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.3.1` | Completed | Open-source project foundation |
 | `v0.4.0` | Completed | Deterministic, read-only patch planner |
 | `v0.5.0` | Completed | Isolated patch writer and unified diffs |
-| `v0.6.0` | Current | Safe isolated QA verification |
-| `v0.7.0` | Planned | Documentation agent |
+| `v0.6.0` | Completed | Safe isolated QA verification |
+| `v0.7.0` | Current | Deterministic documentation agent |
 | `v0.8.0` | Planned | Dashboard and provider integrations |
 | `v1.0.0` | Planned | Stable safety-reviewed workflow |
 

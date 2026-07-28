@@ -5,6 +5,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from app.models.audit import AuditReport, FindingSeverity
+from app.models.documentation import DocumentationReport
 from app.models.patch import PatchProposal
 from app.models.plan import PatchPlan
 from app.models.repository import RepositorySummary
@@ -240,6 +241,42 @@ def display_verification_report(report: VerificationReport) -> None:
             f"{result.duration_seconds:.2f}",
         )
     console.print(results)
+
+
+def display_documentation_report(report: DocumentationReport) -> None:
+    """Render generated documentation metadata and review warning."""
+    summary = Table(title="Documentation Artifact")
+    summary.add_column("Property", style="bold")
+    summary.add_column("Value")
+    summary.add_row("Proposal", report.proposal_id)
+    summary.add_row("Status", report.status.value)
+    summary.add_row("Files described", str(len(report.changed_files)))
+    summary.add_row("Markdown", report.markdown_path)
+    summary.add_row("Metadata", report.metadata_path)
+    summary.add_row(
+        "QA verification",
+        (
+            "Passed"
+            if report.verification_passed
+            else "Not passed"
+            if report.verification_available
+            else "Not available"
+        ),
+    )
+    summary.add_row(
+        "Original untouched",
+        "Yes" if report.original_repository_untouched else "No",
+    )
+    console.print(summary)
+    console.print(Panel(report.markdown, title="Generated Markdown"))
+    console.print(
+        Panel(
+            "Review this artifact before copying it into project documentation. "
+            "No repository source, commit, or remote was changed.",
+            title="Human Review Required",
+            border_style="yellow",
+        )
+    )
 
 
 def display_audit_report(report: AuditReport) -> None:

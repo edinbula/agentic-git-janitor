@@ -8,9 +8,27 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Patch validation execution
-- QA result models
-- Bounded repair and retry workflow
+- Dashboard and model-provider integrations
+- Repository policy and plugin system
+
+## [0.7.0] - 2026-07-28
+
+### Added
+
+- Typed documentation report and awaiting-review lifecycle status
+- Deterministic Documentation Agent for persisted patch proposals
+- Markdown change summaries with per-file line counts
+- Optional inclusion of persisted QA verification outcomes
+- Persisted Markdown and JSON documentation artifacts
+- Original repository integrity verification
+- Rich and JSON `document` command output
+- Documentation Agent safety, behavior, and CLI tests
+
+### Safety
+
+- Documentation generation requires an existing isolated patch workspace
+- Generated artifacts are always marked as requiring human review
+- Repository source files are never edited, committed, or pushed
 
 ## [0.6.0] - 2026-07-28
 

@@ -162,6 +162,21 @@ Validation executes only in the proposal's isolated workspace. Commands are
 parsed without a shell, checked against the executable allowlist, constrained
 by a timeout, and captured in a persisted QA report.
 
+## `document`
+
+Generate deterministic Markdown and JSON documentation artifacts for a
+persisted proposal.
+
+```bash
+git-janitor document REPOSITORY PATCH-IDENTIFIER
+git-janitor document REPOSITORY PATCH-IDENTIFIER --json
+```
+
+The command summarizes the bounded file changes and includes the persisted QA
+outcome when one is available. Artifacts are written to the configured
+documentation directory. Repository source files are not edited, and every
+artifact remains marked as awaiting human review.
+
 ## Planned commands
 
 The following commands are planned and are not yet guaranteed to exist.

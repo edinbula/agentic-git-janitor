@@ -22,6 +22,7 @@ build/
 
 # Local generated reports
 reports/
+documentation/
 *.audit.json
 *.plan.json
 

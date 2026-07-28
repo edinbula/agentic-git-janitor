@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     log_directory: Path = Field(default=Path("logs"))
     reports_directory: Path = Field(default=Path("reports"))
     patches_directory: Path = Field(default=Path("patches"))
+    documentation_directory: Path = Field(default=Path("documentation"))
     workspace_directory: Path = Field(default=Path(".janitor-workspaces"))
 
     command_timeout_seconds: int = Field(default=120, ge=1, le=3600)

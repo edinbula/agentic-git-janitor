@@ -86,15 +86,18 @@ Plans may change as implementation and safety testing progress.
 - Persisted QA reports
 - Rich and JSON `verify` output
 
-## Planned
-
 ### Sprint 7 — Documentation Agent (`v0.7.0`)
 
-- README update suggestions
-- Changelog generation
-- Docstring review
-- Architecture documentation updates
-- Change summaries
+- Typed documentation report and lifecycle status
+- Deterministic Markdown change summaries
+- Patch file and line-change inventory
+- Optional persisted QA outcome inclusion
+- Markdown and JSON artifact persistence
+- Original repository integrity verification
+- Human-review gate
+- Rich and JSON `document` output
+
+## Planned
 
 ### Sprint 8 — Dashboard and Providers (`v0.8.0`)
 

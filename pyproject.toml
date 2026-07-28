@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentic-git-janitor"
-version = "0.6.0"
+version = "0.7.0"
 description = "A safe, local-first AI software engineering agent for Git repositories."
 readme = "README.md"
 requires-python = ">=3.11"

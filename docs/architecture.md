@@ -35,8 +35,10 @@ Documentation Agent
 Git Agent
 ```
 
-Inspection, profiling, auditing, deterministic patch planning, isolated patch proposal generation, and QA verification are currently implemented. Later stages will be
-introduced incrementally and tested independently.
+Inspection, profiling, auditing, deterministic patch planning, isolated patch
+proposal generation, QA verification, and documentation artifact generation
+are currently implemented. Later stages will be introduced incrementally and
+tested independently.
 
 ## Layered design
 
@@ -97,9 +99,10 @@ Current agents:
 - Patch Planner
 - Patch Writer
 - QA Verifier
+- Documentation Agent
+
 Planned agents:
 
-- Documentation Agent
 - Git Agent
 
 Agents should not directly perform unrestricted system operations. They should request actions through validated tools.
@@ -147,6 +150,9 @@ AuditReport
 PatchPlan
 PatchTask
 ValidationResult
+PatchProposal
+VerificationReport
+DocumentationReport
 ```
 
 Typed data provides:
@@ -178,9 +184,11 @@ This reduces cost and improves predictability.
 
 Inspection, profiling, and auditing must not modify the repository.
 
-### Planned patch isolation
+### Patch isolation
 
-Future patches should be written to an isolated workspace before being applied to the user's working tree.
+Patches are written to an isolated workspace. QA and documentation stages
+consume persisted proposal metadata and never apply changes to the user's
+working tree.
 
 ### Command restrictions
 

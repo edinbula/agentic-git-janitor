@@ -1,9 +1,11 @@
 """Tests for command-line output."""
 
+import json
 import subprocess
 from pathlib import Path
 
 from app.cli import app
+from app.models.patch import PatchFileSummary, PatchProposal
 from typer.testing import CliRunner
 
 runner = CliRunner()
@@ -24,7 +26,7 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.6.0" in result.stdout
+    assert "0.7.0" in result.stdout
 
 
 def test_inspect_command_displays_profiled_repository(tmp_path: Path) -> None:
@@ -138,3 +140,43 @@ def test_patch_command_generates_unapplied_proposal(tmp_path: Path) -> None:
     assert "# TODO: replace placeholder" in (repository / "app" / "main.py").read_text(
         encoding="utf-8"
     )
+
+
+def test_document_command_generates_reviewable_artifact(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    (repository / "app").mkdir()
+    source = repository / "app" / "main.py"
+    source.write_text("value = 1\n", encoding="utf-8")
+    workspace = repository / ".janitor-workspaces" / "PATCH-ABC123"
+    workspace.mkdir(parents=True)
+    patches = repository / "patches"
+    patches.mkdir()
+    proposal = PatchProposal(
+        proposal_id="PATCH-ABC123",
+        repository_name=repository.name,
+        repository_path=str(repository),
+        task_id="PLAN-001",
+        workspace_path=str(workspace),
+        patch_path=str(patches / "PATCH-ABC123.patch"),
+        metadata_path=str(patches / "PATCH-ABC123.json"),
+        files=[PatchFileSummary(path="app/main.py", additions=1, deletions=0)],
+        additions=1,
+        deletions=0,
+        unified_diff="+documentation\n",
+    )
+    (patches / "PATCH-ABC123.json").write_text(
+        json.dumps(proposal.model_dump(mode="json")),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["document", str(repository), "PATCH-ABC123"],
+    )
+
+    assert result.exit_code == 0
+    assert "awaiting_review" in result.stdout
+    assert "Human Review Required" in result.stdout
+    assert (repository / "documentation" / "PATCH-ABC123.md").is_file()
+    assert source.read_text(encoding="utf-8") == "value = 1\n"

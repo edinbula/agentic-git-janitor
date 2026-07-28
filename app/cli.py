@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from app.agents.code_auditor import CodeAuditor
+from app.agents.documentation_agent import DocumentationAgent
 from app.agents.patch_planner import PatchPlanner
 from app.agents.patch_writer import PatchWriter
 from app.agents.qa_verifier import QAVerifier
@@ -18,6 +19,7 @@ from app.logging_config import configure_logging
 from app.models.patch import PatchRequest
 from app.presentation import (
     display_audit_report,
+    display_documentation_report,
     display_patch_plan,
     display_patch_proposal,
     display_repository_summary,
@@ -271,6 +273,43 @@ def verify(
         )
         return
     display_verification_report(report)
+
+
+@app.command()
+def document(
+    repository: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to the original Git repository.",
+        ),
+    ],
+    proposal_id: Annotated[
+        str,
+        typer.Argument(help="Persisted PATCH identifier to document."),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print documentation metadata as JSON."),
+    ] = False,
+) -> None:
+    """Generate reviewable documentation for an isolated patch proposal."""
+    try:
+        report = DocumentationAgent(repository).document(proposal_id)
+    except (OSError, ValidationError, ValueError, RuntimeError) as exc:
+        console.print(Panel(str(exc), title="Documentation failed", border_style="red"))
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(report.model_dump(mode="json"), ensure_ascii=False)
+        )
+        return
+    display_documentation_report(report)
 
 
 if __name__ == "__main__":
