@@ -53,6 +53,9 @@ The project is designed around four principles:
 - Generate deterministic Markdown change summaries from patch proposals
 - Include optional QA outcomes in persisted documentation metadata
 - Preserve repository sources behind a documentation review gate
+- Check local Ollama availability and installed models
+- Generate bounded AI patch-request drafts from deterministic plan tasks
+- Validate provider output against typed schemas and planned file scope
 - Validate the project with Ruff, mypy, and pytest
 
 ## Planned capabilities
@@ -208,6 +211,14 @@ Generate reviewable documentation for a persisted proposal:
 git-janitor document . PATCH-IDENTIFIER
 ```
 
+Check the local model provider and generate a reviewable draft:
+
+```bash
+git-janitor providers
+git-janitor draft . PLAN-001 --provider ollama --model qwen2.5-coder:7b
+git-janitor patch . drafts/DRAFT-IDENTIFIER.request.json
+```
+
 Export the report as JSON:
 
 ```bash
@@ -264,8 +275,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.4.0` | Completed | Deterministic, read-only patch planner |
 | `v0.5.0` | Completed | Isolated patch writer and unified diffs |
 | `v0.6.0` | Completed | Safe isolated QA verification |
-| `v0.7.0` | Current | Deterministic documentation agent |
-| `v0.8.0` | Planned | Dashboard and provider integrations |
+| `v0.7.0` | Completed | Deterministic documentation agent |
+| `v0.8.0` | Current | Local providers and bounded AI drafts |
 | `v1.0.0` | Planned | Stable safety-reviewed workflow |
 
 See the full [Roadmap](docs/roadmap.md).

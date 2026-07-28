@@ -11,6 +11,7 @@ from rich.panel import Panel
 
 from app.agents.code_auditor import CodeAuditor
 from app.agents.documentation_agent import DocumentationAgent
+from app.agents.draft_agent import DraftAgent
 from app.agents.patch_planner import PatchPlanner
 from app.agents.patch_writer import PatchWriter
 from app.agents.qa_verifier import QAVerifier
@@ -20,11 +21,14 @@ from app.models.patch import PatchRequest
 from app.presentation import (
     display_audit_report,
     display_documentation_report,
+    display_patch_draft,
     display_patch_plan,
     display_patch_proposal,
+    display_provider_status,
     display_repository_summary,
     display_verification_report,
 )
+from app.providers.registry import create_provider
 from app.services.repository_inspector import RepositoryInspector
 
 app = typer.Typer(
@@ -310,6 +314,78 @@ def document(
         )
         return
     display_documentation_report(report)
+
+
+@app.command("providers")
+def providers_command(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print provider status as JSON."),
+    ] = False,
+) -> None:
+    """Check the configured local model provider."""
+    settings = get_settings()
+    status = create_provider("ollama", settings).health_check()
+    if json_output:
+        console.print_json(
+            json.dumps(status.model_dump(mode="json"), ensure_ascii=False)
+        )
+        return
+    display_provider_status(status)
+
+
+@app.command()
+def draft(
+    repository: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to the clean local Git repository.",
+        ),
+    ],
+    task_id: Annotated[
+        str,
+        typer.Argument(help="Deterministic PLAN identifier to draft."),
+    ],
+    provider_name: Annotated[
+        str,
+        typer.Option("--provider", help="Configured model provider."),
+    ] = "ollama",
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="Provider model name."),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print draft metadata as JSON."),
+    ] = False,
+) -> None:
+    """Generate a bounded AI patch-request draft for human review."""
+    settings = get_settings()
+    selected_model = model or settings.ollama_model
+    try:
+        provider = create_provider(provider_name, settings)
+        patch_draft = DraftAgent(
+            repository,
+            provider,
+            settings,
+        ).create_draft(task_id, selected_model)
+    except (OSError, ValidationError, ValueError, RuntimeError) as exc:
+        console.print(
+            Panel(str(exc), title="Draft generation failed", border_style="red")
+        )
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(patch_draft.model_dump(mode="json"), ensure_ascii=False)
+        )
+        return
+    display_patch_draft(patch_draft)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,9 @@ Structured Findings
 Patch Planner
       |
       v
+AI Draft Agent
+      |
+      v
 Patch Writer
       |
       v
@@ -97,6 +100,7 @@ Current agents:
 
 - Code Auditor
 - Patch Planner
+- AI Draft Agent
 - Patch Writer
 - QA Verifier
 - Documentation Agent
@@ -153,6 +157,9 @@ ValidationResult
 PatchProposal
 VerificationReport
 DocumentationReport
+GenerationRequest
+GenerationResponse
+PatchDraft
 ```
 
 Typed data provides:
@@ -189,6 +196,13 @@ Inspection, profiling, and auditing must not modify the repository.
 Patches are written to an isolated workspace. QA and documentation stages
 consume persisted proposal metadata and never apply changes to the user's
 working tree.
+
+### Provider isolation
+
+Models receive only one selected task and its explicitly allowed text files.
+Provider output is treated as untrusted data and must pass schema, path, file
+scope, and size validation. Ollama access is limited to a local HTTP endpoint;
+models receive no shell, Git, or direct filesystem capability.
 
 ### Command restrictions
 

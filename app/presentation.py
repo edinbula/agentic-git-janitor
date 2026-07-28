@@ -6,8 +6,10 @@ from rich.table import Table
 
 from app.models.audit import AuditReport, FindingSeverity
 from app.models.documentation import DocumentationReport
+from app.models.draft import PatchDraft
 from app.models.patch import PatchProposal
 from app.models.plan import PatchPlan
+from app.models.provider import ProviderStatus
 from app.models.repository import RepositorySummary
 from app.models.verification import VerificationReport
 
@@ -273,6 +275,46 @@ def display_documentation_report(report: DocumentationReport) -> None:
         Panel(
             "Review this artifact before copying it into project documentation. "
             "No repository source, commit, or remote was changed.",
+            title="Human Review Required",
+            border_style="yellow",
+        )
+    )
+
+
+def display_provider_status(status: ProviderStatus) -> None:
+    """Render provider availability and installed models."""
+    table = Table(title="Model Provider")
+    table.add_column("Property", style="bold")
+    table.add_column("Value")
+    table.add_row("Provider", status.provider)
+    table.add_row("Available", "Yes" if status.available else "No")
+    table.add_row("Models", ", ".join(status.models) or "None detected")
+    table.add_row("Message", status.message)
+    console.print(table)
+
+
+def display_patch_draft(draft: PatchDraft) -> None:
+    """Render AI-generated draft metadata and approval warning."""
+    table = Table(title="AI Patch Draft")
+    table.add_column("Property", style="bold")
+    table.add_column("Value")
+    table.add_row("Draft", draft.draft_id)
+    table.add_row("Task", draft.task_id)
+    table.add_row("Status", draft.status.value)
+    table.add_row("Provider", draft.provider)
+    table.add_row("Model", draft.model)
+    table.add_row("Files", str(len(draft.changes)))
+    table.add_row("Request", draft.request_path)
+    table.add_row("Metadata", draft.metadata_path)
+    table.add_row(
+        "Original untouched",
+        "Yes" if draft.original_repository_untouched else "No",
+    )
+    console.print(table)
+    console.print(
+        Panel(
+            "Review the generated request before passing it to the patch "
+            "command. No repository source, commit, or remote was changed.",
             title="Human Review Required",
             border_style="yellow",
         )

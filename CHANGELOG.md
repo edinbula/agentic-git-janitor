@@ -8,8 +8,34 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Dashboard and model-provider integrations
-- Repository policy and plugin system
+- Explicit approval and safe patch application
+- Real-repository compatibility testing
+
+## [0.8.0] - 2026-07-28
+
+### Added
+
+- Typed provider health, generation request, response, and usage models
+- Stable model-provider protocol and registry
+- Deterministic mock provider for offline automated tests
+- Local Ollama provider using structured, non-streaming JSON generation
+- Provider availability and installed-model checks
+- Bounded AI Draft Agent driven by deterministic patch tasks
+- Persisted patch-request and draft metadata artifacts
+- Rich and JSON `providers` and `draft` command output
+- Provider and Draft Agent safety and behavior tests
+
+### Safety
+
+- Ollama endpoints are restricted to HTTP on localhost
+- Models receive only explicitly allowed task files
+- Repository content is treated as untrusted prompt data
+- Provider output must pass typed schema, task, path, scope, and size checks
+- Quality-marker drafts must deterministically reduce TODO or FIXME findings
+- Task-resolution meta-comments are rejected from quality-marker drafts
+- Bounded validation-feedback retries for rejected provider drafts
+- Unresolved placeholder comments are rejected from quality-marker drafts
+- Draft generation never edits, commits, or pushes repository sources
 
 ## [0.7.0] - 2026-07-28
 

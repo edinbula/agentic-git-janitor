@@ -26,7 +26,7 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "0.7.0" in result.stdout
+    assert "0.8.0" in result.stdout
 
 
 def test_inspect_command_displays_profiled_repository(tmp_path: Path) -> None:

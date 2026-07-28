@@ -97,24 +97,29 @@ Plans may change as implementation and safety testing progress.
 - Human-review gate
 - Rich and JSON `document` output
 
+### Sprint 8 — Local Providers and AI Drafts (`v0.8.0`)
+
+- Typed provider request, response, health, and usage models
+- Provider protocol and registry
+- Deterministic mock provider for CI
+- Localhost-restricted Ollama integration
+- JSON-schema structured generation
+- Bounded task and file context
+- Typed AI patch-request drafts
+- Path, scope, response-size, and repository-integrity validation
+- Persisted request and metadata artifacts
+- Rich and JSON provider and draft output
+
 ## Planned
 
-### Sprint 8 — Dashboard and Providers (`v0.8.0`)
+### Sprint 9 — Approval and Safe Application (`v0.9.0`)
 
-- Streamlit interface
-- Ollama integration
-- Provider abstraction
-- Optional OpenAI, Gemini, and Groq integrations
-- Configuration profiles
-- Cost and token visibility
-
-### Sprint 9 — Policy and Plugin System (`v0.9.0`)
-
-- Repository policies
-- Custom audit plugins
-- Custom validation plugins
-- Language-specific analyzers
-- Organization configuration
+- Explicit approve and reject states
+- Repository revision and cleanliness checks
+- Safe application of verified proposals
+- Recoverable branch or backup behavior
+- Optional local commit creation
+- No automatic remote push
 
 ### Sprint 10 — Stable Release (`v1.0.0`)
 

@@ -177,6 +177,39 @@ outcome when one is available. Artifacts are written to the configured
 documentation directory. Repository source files are not edited, and every
 artifact remains marked as awaiting human review.
 
+## `providers`
+
+Check whether the configured local Ollama API is reachable and list installed
+models.
+
+```bash
+git-janitor providers
+git-janitor providers --json
+```
+
+The provider endpoint is restricted to HTTP on localhost.
+
+## `draft`
+
+Generate a bounded AI patch-request draft for one deterministic plan task.
+
+```bash
+git-janitor draft REPOSITORY PLAN-IDENTIFIER \
+  --provider ollama \
+  --model qwen2.5-coder:7b
+```
+
+The agent sends only the selected task and its allowed UTF-8 files. Provider
+output must match the typed `PatchRequest` schema and planned file scope.
+Generated request and metadata artifacts are persisted in the configured
+draft directory and require human review.
+
+After review, the request can enter the existing isolated patch workflow:
+
+```bash
+git-janitor patch REPOSITORY drafts/DRAFT-IDENTIFIER.request.json
+```
+
 ## Planned commands
 
 The following commands are planned and are not yet guaranteed to exist.
