@@ -12,6 +12,7 @@ from rich.panel import Panel
 from app.agents.code_auditor import CodeAuditor
 from app.agents.documentation_agent import DocumentationAgent
 from app.agents.draft_agent import DraftAgent
+from app.agents.evaluation_agent import EvaluationAgent
 from app.agents.patch_planner import PatchPlanner
 from app.agents.patch_writer import PatchWriter
 from app.agents.qa_verifier import QAVerifier
@@ -22,6 +23,7 @@ from app.models.patch import PatchRequest
 from app.presentation import (
     display_audit_report,
     display_documentation_report,
+    display_evaluation_report,
     display_patch_draft,
     display_patch_plan,
     display_patch_proposal,
@@ -136,6 +138,42 @@ def audit(
         return
 
     display_audit_report(report)
+
+
+@app.command()
+def evaluate(
+    repository: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+            readable=True,
+            resolve_path=True,
+            help="Path to the Git repository to evaluate without modifying it.",
+        ),
+    ],
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print the complete repository evaluation as JSON.",
+        ),
+    ] = False,
+) -> None:
+    """Generate read-only field-validation evidence for a repository."""
+    try:
+        report = EvaluationAgent(repository).evaluate()
+    except (OSError, ValidationError, ValueError, RuntimeError) as exc:
+        console.print(Panel(str(exc), title="Evaluation failed", border_style="red"))
+        raise typer.Exit(code=1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(report.model_dump(mode="json"), ensure_ascii=False)
+        )
+        return
+    display_evaluation_report(report)
 
 
 @app.command()

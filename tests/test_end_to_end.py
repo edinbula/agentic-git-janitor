@@ -31,15 +31,10 @@ def run_git(path: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def test_guarded_workflow_reaches_local_commit_without_remote_push(
+def workflow_repository(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    executable_directory = str(Path(sys.executable).parent)
-    monkeypatch.setenv(
-        "PATH",
-        executable_directory + os.pathsep + os.environ.get("PATH", ""),
-    )
+) -> tuple[Path, Path, str, str, bytes]:
+    """Create the committed repository used by the guarded workflow."""
     repository = tmp_path / "repository"
     repository.mkdir()
     run_git(repository, "init")
@@ -70,12 +65,19 @@ def test_guarded_workflow_reaches_local_commit_without_remote_push(
     )
     run_git(repository, "add", ".")
     run_git(repository, "commit", "-m", "Initial fixture")
-    original_branch = run_git(repository, "branch", "--show-current")
-    original_commit = run_git(repository, "rev-parse", "HEAD")
-    original_content = source.read_bytes()
+    return (
+        repository,
+        source,
+        run_git(repository, "branch", "--show-current"),
+        run_git(repository, "rev-parse", "HEAD"),
+        source.read_bytes(),
+    )
 
+
+def workflow_settings(tmp_path: Path) -> Settings:
+    """Create isolated artifact settings for the guarded workflow."""
     artifacts = tmp_path / "artifacts"
-    settings = Settings(
+    return Settings(
         _env_file=None,
         drafts_directory=artifacts / "drafts",
         workspace_directory=artifacts / "workspaces",
@@ -85,8 +87,11 @@ def test_guarded_workflow_reaches_local_commit_without_remote_push(
         applications_directory=artifacts / "applications",
         backups_directory=artifacts / "backups",
     )
-    replacement = 'def main() -> str:\n    return "ready"\n'
-    provider = MockProvider(
+
+
+def workflow_provider(replacement: str) -> MockProvider:
+    """Return the deterministic provider used by the integration test."""
+    return MockProvider(
         json.dumps(
             {
                 "task_id": "PLAN-001",
@@ -94,6 +99,27 @@ def test_guarded_workflow_reaches_local_commit_without_remote_push(
             }
         )
     )
+
+
+def test_guarded_workflow_reaches_local_commit_without_remote_push(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable_directory = str(Path(sys.executable).parent)
+    monkeypatch.setenv(
+        "PATH",
+        executable_directory + os.pathsep + os.environ.get("PATH", ""),
+    )
+    (
+        repository,
+        source,
+        original_branch,
+        original_commit,
+        original_content,
+    ) = workflow_repository(tmp_path)
+    settings = workflow_settings(tmp_path)
+    replacement = 'def main() -> str:\n    return "ready"\n'
+    provider = workflow_provider(replacement)
 
     summary = RepositoryInspector(repository).inspect()
     audit = CodeAuditor(repository).audit()

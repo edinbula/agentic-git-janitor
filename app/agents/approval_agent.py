@@ -6,6 +6,7 @@ import difflib
 import hashlib
 import json
 import shutil
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
@@ -20,6 +21,18 @@ from app.models.approval import (
 )
 from app.models.patch import PatchProposal
 from app.models.verification import VerificationReport, VerificationStatus
+
+
+@dataclass(frozen=True)
+class _ApplicationContext:
+    """Validated state required for a recoverable local application."""
+
+    repo: Repo
+    original_branch: str
+    branch: str
+    workspace: Path
+    backup: Path
+    paths: list[str]
 
 
 class ApprovalAgent:
@@ -69,6 +82,33 @@ class ApprovalAgent:
         if decision.decision != DecisionStatus.APPROVED:
             raise ValueError("Proposal does not have an approved decision.")
 
+        context = self._prepare_application(proposal, decision)
+        originals: dict[str, bytes] = {}
+        try:
+            context.backup.mkdir(parents=True)
+            originals = self._backup_originals(context)
+            self._apply_workspace(context, proposal)
+            commit_sha, status = self._optional_commit(
+                context,
+                proposal_id,
+                create_commit,
+            )
+        except Exception:
+            self._rollback_application(context, originals)
+            raise
+        return self._record_application(
+            context,
+            proposal,
+            status,
+            commit_sha,
+        )
+
+    def _prepare_application(
+        self,
+        proposal: PatchProposal,
+        decision: ProposalDecision,
+    ) -> _ApplicationContext:
+        """Validate repository and artifact state before writing anything."""
         repo = Repo(self.repository_path)
         if repo.is_dirty(untracked_files=True):
             raise ValueError("Application requires a clean repository.")
@@ -78,69 +118,106 @@ class ApprovalAgent:
         if repo.head.is_detached:
             raise ValueError("Application requires a named source branch.")
         original_branch = repo.active_branch.name
-        branch = f"janitor/{proposal_id.lower()}"
+        branch = f"janitor/{proposal.proposal_id.lower()}"
         if branch in {item.name for item in repo.branches}:
             raise ValueError(f"Application branch '{branch}' already exists.")
 
         workspace = self._validated_workspace(proposal)
-        backup = self._output_path(self.settings.backups_directory) / proposal_id
+        backup = (
+            self._output_path(self.settings.backups_directory) / proposal.proposal_id
+        )
         if backup.exists():
-            raise ValueError(f"Backup for '{proposal_id}' already exists.")
-        backup.mkdir(parents=True)
+            raise ValueError(f"Backup for '{proposal.proposal_id}' already exists.")
         paths = [item.path for item in proposal.files]
+        return _ApplicationContext(
+            repo=repo,
+            original_branch=original_branch,
+            branch=branch,
+            workspace=workspace,
+            backup=backup,
+            paths=paths,
+        )
+
+    def _backup_originals(
+        self,
+        context: _ApplicationContext,
+    ) -> dict[str, bytes]:
+        """Persist recoverable copies of every approved source file."""
         originals: dict[str, bytes] = {}
-        try:
-            for relative in paths:
-                source = self._validated_file(self.repository_path, relative)
-                candidate = self._validated_file(workspace, relative)
-                originals[relative] = source.read_bytes()
-                backup_file = backup / relative
-                backup_file.parent.mkdir(parents=True, exist_ok=True)
-                backup_file.write_bytes(originals[relative])
+        for relative in context.paths:
+            source = self._validated_file(self.repository_path, relative)
+            self._validated_file(context.workspace, relative)
+            originals[relative] = source.read_bytes()
+            backup_file = context.backup / relative
+            backup_file.parent.mkdir(parents=True, exist_ok=True)
+            backup_file.write_bytes(originals[relative])
+        return originals
 
-            repo.git.checkout("-b", branch)
-            for relative in paths:
-                target = self._validated_file(self.repository_path, relative)
-                candidate = self._validated_file(workspace, relative)
-                shutil.copy2(candidate, target)
-            changed = {item.a_path or item.b_path for item in repo.index.diff(None)}
-            if changed != set(paths):
-                raise RuntimeError("Applied files differ from approved proposal scope.")
-            self._validate_applied_content(proposal)
+    def _apply_workspace(
+        self,
+        context: _ApplicationContext,
+        proposal: PatchProposal,
+    ) -> None:
+        """Copy the approved workspace onto a new local branch."""
+        context.repo.git.checkout("-b", context.branch)
+        for relative in context.paths:
+            target = self._validated_file(self.repository_path, relative)
+            candidate = self._validated_file(context.workspace, relative)
+            shutil.copy2(candidate, target)
+        changed = {item.a_path or item.b_path for item in context.repo.index.diff(None)}
+        if changed != set(context.paths):
+            raise RuntimeError("Applied files differ from approved proposal scope.")
+        self._validate_applied_content(proposal)
 
-            commit_sha: str | None = None
-            status = ApplicationStatus.APPLIED
-            if create_commit:
-                repo.index.add(paths)
-                commit = repo.index.commit(
-                    f"fix: apply {proposal_id.lower()}",
-                )
-                commit_sha = commit.hexsha
-                status = ApplicationStatus.COMMITTED
-        except Exception:
-            for relative, content in originals.items():
-                (self.repository_path / relative).write_bytes(content)
-            if repo.active_branch.name != original_branch:
-                repo.git.checkout(original_branch)
-            if branch in {item.name for item in repo.branches}:
-                repo.git.branch("-D", branch)
-            if backup.is_dir():
-                shutil.rmtree(backup)
-            raise
+    @staticmethod
+    def _optional_commit(
+        context: _ApplicationContext,
+        proposal_id: str,
+        create_commit: bool,
+    ) -> tuple[str | None, ApplicationStatus]:
+        """Optionally create the requested local-only commit."""
+        if not create_commit:
+            return None, ApplicationStatus.APPLIED
+        context.repo.index.add(context.paths)
+        commit = context.repo.index.commit(f"fix: apply {proposal_id.lower()}")
+        return commit.hexsha, ApplicationStatus.COMMITTED
 
+    def _rollback_application(
+        self,
+        context: _ApplicationContext,
+        originals: dict[str, bytes],
+    ) -> None:
+        """Restore sources, branch state, and incomplete backup on failure."""
+        for relative, content in originals.items():
+            (self.repository_path / relative).write_bytes(content)
+        if context.repo.active_branch.name != context.original_branch:
+            context.repo.git.checkout(context.original_branch)
+        if context.branch in {item.name for item in context.repo.branches}:
+            context.repo.git.branch("-D", context.branch)
+        if context.backup.is_dir():
+            shutil.rmtree(context.backup)
+
+    def _record_application(
+        self,
+        context: _ApplicationContext,
+        proposal: PatchProposal,
+        status: ApplicationStatus,
+        commit_sha: str | None,
+    ) -> ApplicationReport:
+        """Persist the completed application report."""
         reports = self._output_path(self.settings.applications_directory)
         reports.mkdir(parents=True, exist_ok=True)
-        report_path = reports / f"{proposal_id}.application.json"
+        report_path = reports / f"{proposal.proposal_id}.application.json"
         report = ApplicationReport(
-            proposal_id=proposal_id,
+            proposal_id=proposal.proposal_id,
             repository_path=str(self.repository_path),
             status=status,
-            original_branch=original_branch,
-            application_branch=branch,
+            original_branch=context.original_branch,
+            application_branch=context.branch,
             base_commit=proposal.base_commit,
             patch_sha256=proposal.patch_sha256,
-            backup_path=str(backup),
-            affected_files=paths,
+            backup_path=str(context.backup),
+            affected_files=context.paths,
             commit_sha=commit_sha,
             applied_at=datetime.now(UTC),
             report_path=str(report_path),

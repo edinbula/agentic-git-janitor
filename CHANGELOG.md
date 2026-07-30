@@ -8,7 +8,34 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Feedback-driven fixes from the `v1.0.0rc1` release candidate
+- Field feedback from representative external repositories
+- Stable `v1.0.0` promotion after release-candidate validation
+
+## [1.0.0rc2] - 2026-07-30
+
+### Added
+
+- Read-only `evaluate` command for repeatable repository field validation
+- Typed readiness checks with `ready`, `caution`, and `blocked` outcomes
+- Deterministic evaluation identifiers bound to repository path, HEAD, and
+  working-tree state
+- External JSON and Markdown evidence reports
+- Representative clean, untested, dirty, and critically broken fixtures
+- Field-validation protocol and acceptance criteria
+
+### Changed
+
+- Recoverable patch application is decomposed into focused validation, backup,
+  application, commit, rollback, and reporting steps
+- Release-level approval fixtures are split into maintainable setup helpers
+
+### Safety
+
+- Evaluation never executes inferred repository commands
+- Evaluation artifacts must be written outside the target repository
+- HEAD and complete working-tree state are checked before and after evaluation
+- Evaluation fails if repository state changes during analysis
+- Unsupported inferred validation commands are reported, not executed
 
 ## [1.0.0rc1] - 2026-07-30
 

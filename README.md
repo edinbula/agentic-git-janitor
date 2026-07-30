@@ -39,6 +39,8 @@ The project is designed around four principles:
 - Detect syntax errors, TODO/FIXME markers, oversized files, and oversized functions
 - Detect risky patterns such as `eval()`, `exec()`, `shell=True`, pickle deserialization, and possible hard-coded secrets
 - Check Git working-tree cleanliness
+- Evaluate repository readiness without executing project commands
+- Persist external JSON and Markdown field-validation evidence
 - Produce Rich terminal output
 - Export structured JSON reports
 - Generate deterministic, read-only patch plans
@@ -65,8 +67,9 @@ The project is designed around four principles:
 
 ## Release-candidate status
 
-`v1.0.0rc1` contains the stable guarded workflow and is intended for final
-cross-platform and real-repository validation before `v1.0.0`.
+`v1.0.0rc2` adds repeatable, read-only field validation to the stable guarded
+workflow. It is intended for representative real-repository evaluation before
+`v1.0.0`.
 
 Post-1.0 candidates include:
 
@@ -124,6 +127,9 @@ Infrastructure
 ```
 
 See [Architecture](docs/architecture.md) for more detail.
+
+Use the [field-validation protocol](docs/field-validation.md) when evaluating
+release candidates against representative repositories.
 
 ## Installation
 
@@ -189,6 +195,16 @@ Run a deterministic audit:
 ```bash
 git-janitor audit .
 ```
+
+Generate read-only field-validation evidence:
+
+```bash
+git-janitor evaluate .
+git-janitor evaluate . --json
+```
+
+Evaluation does not execute inferred commands or modify the target repository.
+Reports default to `~/.git-janitor/evaluations`, outside the repository.
 
 Generate a read-only patch plan:
 
@@ -294,7 +310,7 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.7.0` | Completed | Deterministic documentation agent |
 | `v0.8.0` | Completed | Local providers and bounded AI drafts |
 | `v0.9.0` | Completed | Explicit approval and safe local application |
-| `v1.0.0rc1` | Current | Cross-platform, safety-reviewed release candidate |
+| `v1.0.0rc2` | Current | Field-validation release candidate |
 | `v1.0.0` | Next | Stable guarded Python workflow |
 
 See the full [Roadmap](docs/roadmap.md).

@@ -8,6 +8,7 @@ from app.models.approval import ApplicationReport, ProposalDecision
 from app.models.audit import AuditReport, FindingSeverity
 from app.models.documentation import DocumentationReport
 from app.models.draft import PatchDraft
+from app.models.evaluation import EvaluationStatus, RepositoryEvaluation
 from app.models.patch import PatchProposal
 from app.models.plan import PatchPlan
 from app.models.provider import ProviderStatus
@@ -15,6 +16,64 @@ from app.models.repository import RepositorySummary
 from app.models.verification import VerificationReport
 
 console = Console()
+
+
+def display_evaluation_report(report: RepositoryEvaluation) -> None:
+    """Render repository-readiness evidence."""
+    summary = Table(title="Repository Field Evaluation")
+    summary.add_column("Property", style="bold")
+    summary.add_column("Value")
+    summary.add_row("Evaluation", report.evaluation_id)
+    summary.add_row("Repository", report.repository_name)
+    summary.add_row("Status", report.status.value.upper())
+    summary.add_row("Readiness", f"{report.readiness_score}/100")
+    summary.add_row("Audit score", f"{report.audit_score}/100")
+    summary.add_row("Findings", str(report.findings))
+    summary.add_row("Patch tasks", str(report.patch_tasks))
+    summary.add_row(
+        "Validation commands",
+        (
+            f"{report.supported_validation_commands}/"
+            f"{len(report.validation_commands)} supported"
+        ),
+    )
+    summary.add_row("JSON report", report.json_path)
+    summary.add_row("Markdown report", report.markdown_path)
+    summary.add_row(
+        "Repository untouched",
+        (
+            "Yes"
+            if report.original_head_unchanged and report.original_worktree_unchanged
+            else "No"
+        ),
+    )
+    console.print(summary)
+
+    checks = Table(title="Readiness Checks")
+    checks.add_column("Check")
+    checks.add_column("Status")
+    checks.add_column("Details")
+    for check in report.checks:
+        style = {
+            EvaluationStatus.READY: "green",
+            EvaluationStatus.CAUTION: "yellow",
+            EvaluationStatus.BLOCKED: "red",
+        }[check.status]
+        checks.add_row(
+            f"{check.check_id}: {check.title}",
+            f"[{style}]{check.status.value.upper()}[/{style}]",
+            check.details,
+        )
+    console.print(checks)
+
+    console.print(
+        Panel(
+            "No validation command was executed and no repository file, "
+            "commit, branch, or remote was changed.",
+            title="Read-Only Evidence",
+            border_style="green",
+        )
+    )
 
 
 def display_repository_summary(summary: RepositorySummary) -> None:

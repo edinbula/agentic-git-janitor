@@ -20,6 +20,9 @@ Code Auditor
 Structured Findings
       |
       v
+Repository Evaluator
+      |
+      v
 Patch Planner
       |
       v
@@ -98,6 +101,7 @@ Agents make bounded decisions from structured inputs.
 Current agents:
 
 - Code Auditor
+- Repository Evaluator
 - Patch Planner
 - AI Draft Agent
 - Patch Writer
@@ -147,6 +151,8 @@ RepositorySummary
 RepositoryProfile
 AuditFinding
 AuditReport
+RepositoryEvaluation
+EvaluationCheck
 PatchPlan
 PatchTask
 ValidationResult
@@ -187,7 +193,10 @@ This reduces cost and improves predictability.
 
 ### Read-only stages
 
-Inspection, profiling, and auditing must not modify the repository.
+Inspection, profiling, auditing, planning, and field evaluation must not modify
+the repository. Evaluation reports are written outside the target repository
+and bind their identifiers to its path, HEAD, and working-tree state. Inferred
+commands are policy-checked but never executed by evaluation.
 
 ### Patch isolation
 

@@ -31,8 +31,8 @@ def run_git(path: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
-    """Create a repository with persisted proposal and passing verification."""
+def create_repository(tmp_path: Path) -> tuple[Path, Path, str]:
+    """Create the source repository used by approval tests."""
     repository = tmp_path / "repository"
     repository.mkdir()
     run_git(repository, "init")
@@ -43,9 +43,12 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
     source.write_text("# TODO\ndef main() -> str:\n    return 'ready'\n")
     run_git(repository, "add", ".")
     run_git(repository, "commit", "-m", "Initial commit")
-    base_commit = run_git(repository, "rev-parse", "HEAD")
+    return repository, source, run_git(repository, "rev-parse", "HEAD")
 
-    settings = Settings(
+
+def approval_settings(tmp_path: Path) -> Settings:
+    """Create isolated artifact settings for approval tests."""
+    return Settings(
         _env_file=None,
         workspace_directory=tmp_path / "workspaces",
         patches_directory=tmp_path / "patches",
@@ -54,6 +57,15 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
         applications_directory=tmp_path / "applications",
         backups_directory=tmp_path / "backups",
     )
+
+
+def persist_proposal(
+    repository: Path,
+    source: Path,
+    base_commit: str,
+    settings: Settings,
+) -> PatchProposal:
+    """Persist one integrity-bound proposal and workspace."""
     workspace = settings.workspace_directory / PROPOSAL_ID
     (workspace / "app").mkdir(parents=True)
     (workspace / "app" / "main.py").write_text(
@@ -97,13 +109,22 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
         patch_sha256=hashlib.sha256(patch_path.read_bytes()).hexdigest(),
     )
     metadata_path.write_text(json.dumps(proposal.model_dump(mode="json")))
+    return proposal
 
+
+def persist_verification(
+    repository: Path,
+    base_commit: str,
+    settings: Settings,
+    proposal: PatchProposal,
+) -> None:
+    """Persist the passing verification bound to the proposal."""
     settings.reports_directory.mkdir()
     report_path = settings.reports_directory / f"{PROPOSAL_ID}.verification.json"
     verification = VerificationReport(
         proposal_id=PROPOSAL_ID,
         repository_name=repository.name,
-        workspace_path=str(workspace),
+        workspace_path=proposal.workspace_path,
         report_path=str(report_path),
         passed=True,
         base_commit=base_commit,
@@ -119,6 +140,14 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
         ],
     )
     report_path.write_text(json.dumps(verification.model_dump(mode="json")))
+
+
+def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
+    """Create a repository with persisted proposal and passing verification."""
+    repository, source, base_commit = create_repository(tmp_path)
+    settings = approval_settings(tmp_path)
+    proposal = persist_proposal(repository, source, base_commit, settings)
+    persist_verification(repository, base_commit, settings, proposal)
     return ApprovalAgent(repository, settings), repository
 
 

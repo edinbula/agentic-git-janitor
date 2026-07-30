@@ -118,6 +118,31 @@ git-janitor plan . --json
 The plan is always marked `read_only: true`. This command does not write source
 files, apply patches, execute validation commands, commit, or push.
 
+## `evaluate`
+
+Generate repeatable field-validation evidence without modifying the repository
+or executing its inferred commands.
+
+```bash
+git-janitor evaluate REPOSITORY
+git-janitor evaluate REPOSITORY --json
+```
+
+The evaluator records:
+
+- Repository HEAD, branch, and working-tree fingerprint
+- Audit and readiness scores
+- Source and test detection
+- Inferred validation strategy and command-policy compatibility
+- Critical and high-severity finding counts
+- `ready`, `caution`, or `blocked` check outcomes
+- Proof that HEAD and the working tree remained unchanged
+
+JSON and Markdown reports are stored in
+`~/.git-janitor/evaluations` by default. Set
+`GIT_JANITOR_EVALUATIONS_DIRECTORY` to another directory outside the target
+repository. The command rejects output paths inside the repository.
+
 ## `patch`
 
 Generate proposed patches in an isolated workspace.

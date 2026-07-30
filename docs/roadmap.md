@@ -134,6 +134,21 @@ The release candidate is complete in source. Final `v1.0.0` promotion requires
 green Windows/Linux CI and successful testing against representative external
 Python repositories.
 
+### Sprint 11 — Field Validation (`v1.0.0rc2`)
+
+- Read-only repository readiness evaluation
+- Stable repository-state evaluation identifiers
+- External JSON and Markdown evidence
+- Ready, caution, and blocked acceptance states
+- Validation-command policy assessment without command execution
+- Before/after HEAD and working-tree integrity proof
+- Representative scenario fixtures and CLI integration coverage
+- Repeatable protocol for real-repository release-candidate testing
+
+The implementation is complete when local and CI checks pass. Stable `v1.0.0`
+still requires collecting and reviewing evidence from representative external
+repositories; field results may produce narrowly scoped fixes before promotion.
+
 ## Future exploration
 
 Potential post-1.0 areas:

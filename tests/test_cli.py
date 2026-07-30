@@ -4,29 +4,31 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
 from app.cli import app
+from app.config.settings import get_settings
 from app.models.patch import PatchFileSummary, PatchProposal
 from typer.testing import CliRunner
 
 runner = CliRunner()
 
 
-def run_git(path: Path, *args: str) -> None:
+def run_git(path: Path, *args: str) -> str:
     """Run a Git command in a test repository."""
-    subprocess.run(
+    return subprocess.run(
         ["git", *args],
         cwd=path,
         check=True,
         capture_output=True,
         text=True,
-    )
+    ).stdout.strip()
 
 
 def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "1.0.0rc1" in result.stdout
+    assert "1.0.0rc2" in result.stdout
 
 
 def test_approval_commands_are_registered() -> None:
@@ -115,6 +117,41 @@ def test_plan_command_supports_json_output(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert '"read_only": true' in result.stdout
     assert '"tasks"' in result.stdout
+
+
+def test_evaluate_command_produces_read_only_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    run_git(repository, "init")
+    run_git(repository, "config", "user.email", "tests@example.com")
+    run_git(repository, "config", "user.name", "Test User")
+    (repository / "app.py").write_text(
+        "def main() -> str:\n    return 'ready'\n",
+        encoding="utf-8",
+    )
+    (repository / "test_app.py").write_text(
+        "from app import main\n\n"
+        "def test_main() -> None:\n"
+        "    assert main() == 'ready'\n",
+        encoding="utf-8",
+    )
+    run_git(repository, "add", ".")
+    run_git(repository, "commit", "-m", "Evaluation fixture")
+    artifacts = tmp_path / "evaluations"
+    monkeypatch.setenv("GIT_JANITOR_EVALUATIONS_DIRECTORY", str(artifacts))
+    get_settings.cache_clear()
+
+    result = runner.invoke(app, ["evaluate", str(repository)])
+
+    get_settings.cache_clear()
+    assert result.exit_code == 0
+    assert "Repository Field Evaluation" in result.stdout
+    assert "Read-Only Evidence" in result.stdout
+    assert "Repository untouched" in result.stdout
+    assert run_git(repository, "status", "--short") == ""
 
 
 def test_patch_command_generates_unapplied_proposal(tmp_path: Path) -> None:

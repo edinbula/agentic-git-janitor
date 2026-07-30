@@ -11,6 +11,11 @@
 
 ## Behavioral validation
 
+- [ ] `git-janitor evaluate` preserves HEAD and working-tree state
+- [ ] Evaluation evidence is written outside the target repository
+- [ ] Clean tested fixture is `ready`
+- [ ] Missing tests or dirty state is `caution`
+- [ ] Critical findings are `blocked`
 - [ ] Full guarded integration test passes
 - [ ] Tampered patch is rejected
 - [ ] Tampered workspace is rejected
@@ -29,6 +34,9 @@
 
 ## Release
 
+- [ ] Evaluate at least five representative external repositories
+- [ ] Review false positives, unsupported commands, and detection gaps
+- [ ] Record results using `docs/field-validation.md`
 - [ ] Update release notes after candidate feedback
 - [ ] Confirm `main` is clean and synchronized
 - [ ] Tag `v1.0.0-rc1`

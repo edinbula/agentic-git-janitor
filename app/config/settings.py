@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     applications_directory: Path = Field(default=Path("applications"))
     backups_directory: Path = Field(default=Path(".janitor-backups"))
     workspace_directory: Path = Field(default=Path(".janitor-workspaces"))
+    evaluations_directory: Path = Field(
+        default_factory=lambda: Path.home() / ".git-janitor" / "evaluations"
+    )
 
     command_timeout_seconds: int = Field(default=120, ge=1, le=3600)
     provider_timeout_seconds: int = Field(default=120, ge=1, le=3600)
