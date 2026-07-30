@@ -115,6 +115,7 @@ class EvaluationAgent:
             validation_commands=validation_commands,
             unsupported=unsupported,
             severity_counts=severity_counts,
+            audit_score=audit.score,
         )
         status = self._overall_status(checks)
         readiness_score = self._readiness_score(
@@ -288,9 +289,25 @@ class EvaluationAgent:
         validation_commands: list[str],
         unsupported: list[str],
         severity_counts: dict[str, int],
+        audit_score: int,
     ) -> list[EvaluationCheck]:
-        critical = severity_counts[FindingSeverity.CRITICAL.value]
-        high = severity_counts[FindingSeverity.HIGH.value]
+        return EvaluationAgent._foundation_checks(
+            clean,
+            source_files,
+            test_files,
+            validation_commands,
+            unsupported,
+        ) + EvaluationAgent._finding_checks(severity_counts, audit_score)
+
+    @staticmethod
+    def _foundation_checks(
+        clean: bool,
+        source_files: int,
+        test_files: int,
+        validation_commands: list[str],
+        unsupported: list[str],
+    ) -> list[EvaluationCheck]:
+        """Build repository structure and validation-strategy checks."""
         return [
             EvaluationAgent._check(
                 "EVAL001",
@@ -332,6 +349,17 @@ class EvaluationAgent:
                 "All inferred validation commands are allowlisted.",
                 f"{len(unsupported)} inferred command(s) are blocked.",
             ),
+        ]
+
+    @staticmethod
+    def _finding_checks(
+        severity_counts: dict[str, int],
+        audit_score: int,
+    ) -> list[EvaluationCheck]:
+        """Build finding-severity and aggregate audit-readiness checks."""
+        critical = severity_counts[FindingSeverity.CRITICAL.value]
+        high = severity_counts[FindingSeverity.HIGH.value]
+        return [
             EvaluationAgent._check(
                 "EVAL006",
                 "Critical findings",
@@ -348,7 +376,27 @@ class EvaluationAgent:
                 "Detected 0 high-severity finding(s).",
                 f"Detected {high} high-severity finding(s).",
             ),
+            EvaluationAgent._audit_readiness_check(audit_score),
         ]
+
+    @staticmethod
+    def _audit_readiness_check(audit_score: int) -> EvaluationCheck:
+        """Classify aggregate audit readiness using explicit thresholds."""
+        if audit_score < 50:
+            status = EvaluationStatus.BLOCKED
+            details = f"Audit score {audit_score}/100 is below the 50-point floor."
+        elif audit_score < 80:
+            status = EvaluationStatus.CAUTION
+            details = f"Audit score {audit_score}/100 requires human review."
+        else:
+            status = EvaluationStatus.READY
+            details = f"Audit score {audit_score}/100 meets the readiness threshold."
+        return EvaluationCheck(
+            check_id="EVAL008",
+            title="Aggregate audit readiness",
+            status=status,
+            details=details,
+        )
 
     @staticmethod
     def _check(

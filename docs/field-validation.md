@@ -48,6 +48,12 @@ should remain stable.
 | `caution` | Human review is needed, but no critical blocker was found | Classify or open an issue |
 | `blocked` | Source is unsupported or a critical finding exists | Investigate before relying on the workflow |
 
+Aggregate audit scores also affect the outcome:
+
+- `80–100`: ready at the aggregate audit level.
+- `50–79`: caution and human review required.
+- `0–49`: blocked until the findings are reviewed.
+
 For every run, confirm:
 
 - `original_head_unchanged` is `true`.
@@ -66,3 +72,6 @@ Record one row per repository:
 
 Do not promote the stable release until unexplained blockers and safety
 regressions are resolved. Document expected cautions as known limitations.
+
+See [Field Validation Results](field-validation-results.md) for the sanitized
+release-candidate evidence.

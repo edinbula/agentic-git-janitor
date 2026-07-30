@@ -8,8 +8,21 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Field feedback from representative external repositories
 - Stable `v1.0.0` promotion after release-candidate validation
+
+## [1.0.0rc3] - 2026-07-30
+
+### Added
+
+- Aggregate audit-readiness evaluation with explicit acceptance thresholds
+- Regression coverage for ready, caution, and blocked score boundaries
+- Sanitized results from five representative real-repository evaluations
+
+### Changed
+
+- Repositories scoring below 50/100 are now classified as `blocked`
+- Repositories scoring from 50 through 79 are classified as `caution`
+- Evaluation warnings now explain low aggregate audit readiness
 
 ## [1.0.0rc2] - 2026-07-30
 

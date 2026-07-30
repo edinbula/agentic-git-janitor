@@ -150,3 +150,24 @@ def test_evaluation_identifier_is_stable_for_same_repository_state(
     second = agent.evaluate()
 
     assert first.evaluation_id == second.evaluation_id
+
+
+@pytest.mark.parametrize(
+    ("audit_score", "expected"),
+    [
+        (100, EvaluationStatus.READY),
+        (80, EvaluationStatus.READY),
+        (79, EvaluationStatus.CAUTION),
+        (50, EvaluationStatus.CAUTION),
+        (49, EvaluationStatus.BLOCKED),
+        (0, EvaluationStatus.BLOCKED),
+    ],
+)
+def test_aggregate_audit_readiness_thresholds(
+    audit_score: int,
+    expected: EvaluationStatus,
+) -> None:
+    check = EvaluationAgent._audit_readiness_check(audit_score)
+
+    assert check.check_id == "EVAL008"
+    assert check.status is expected

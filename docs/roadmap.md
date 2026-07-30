@@ -149,6 +149,19 @@ The implementation is complete when local and CI checks pass. Stable `v1.0.0`
 still requires collecting and reviewing evidence from representative external
 repositories; field results may produce narrowly scoped fixes before promotion.
 
+### Sprint 12 — Real-Repository Evidence (`v1.0.0rc3`)
+
+- Five representative repository evaluations
+- Clean and dirty working-tree scenarios
+- ML, recommendation, ATS, research, and maintenance workloads
+- Manual classification of findings and expected cautions
+- Aggregate audit-readiness thresholds
+- Regression tests for field-discovered reporting gaps
+- Sanitized evidence report
+
+Stable `v1.0.0` remains gated on green cross-platform CI and successful
+re-evaluation of the five-repository set using this candidate.
+
 ## Future exploration
 
 Potential post-1.0 areas:

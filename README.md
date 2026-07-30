@@ -67,9 +67,8 @@ The project is designed around four principles:
 
 ## Release-candidate status
 
-`v1.0.0rc2` adds repeatable, read-only field validation to the stable guarded
-workflow. It is intended for representative real-repository evaluation before
-`v1.0.0`.
+`v1.0.0rc3` incorporates evidence from five representative real repositories
+and adds explicit aggregate audit-readiness thresholds before `v1.0.0`.
 
 Post-1.0 candidates include:
 
@@ -310,7 +309,7 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.7.0` | Completed | Deterministic documentation agent |
 | `v0.8.0` | Completed | Local providers and bounded AI drafts |
 | `v0.9.0` | Completed | Explicit approval and safe local application |
-| `v1.0.0rc2` | Current | Field-validation release candidate |
+| `v1.0.0rc3` | Current | Evidence-backed field-validation candidate |
 | `v1.0.0` | Next | Stable guarded Python workflow |
 
 See the full [Roadmap](docs/roadmap.md).
