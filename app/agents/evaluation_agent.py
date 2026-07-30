@@ -6,6 +6,7 @@ import hashlib
 import json
 import shlex
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -14,14 +15,42 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from app.agents.code_auditor import CodeAuditor
 from app.agents.patch_planner import PatchPlanner
 from app.config.settings import Settings, get_settings
-from app.models.audit import FindingSeverity
+from app.models.audit import AuditReport, FindingSeverity
 from app.models.evaluation import (
     EvaluationCheck,
     EvaluationStatus,
     RepositoryEvaluation,
 )
+from app.models.plan import PatchPlan
+from app.models.repository import RepositorySummary
 from app.safety.command_policy import CommandPolicy
 from app.services.repository_inspector import RepositoryInspector
+
+
+@dataclass(frozen=True)
+class _RepositorySnapshot:
+    """Repository identity captured before read-only analysis."""
+
+    repo: Repo
+    head: str
+    worktree: str
+    branch: str | None
+
+
+@dataclass(frozen=True)
+class _EvaluationAnalysis:
+    """Deterministic analysis assembled before report persistence."""
+
+    summary: RepositorySummary
+    audit: AuditReport
+    plan: PatchPlan
+    validation_commands: list[str]
+    unsupported: list[str]
+    severity_counts: dict[str, int]
+    checks: list[EvaluationCheck]
+    status: EvaluationStatus
+    readiness_score: int
+    warnings: list[str]
 
 
 class EvaluationAgent:
@@ -39,15 +68,36 @@ class EvaluationAgent:
     def evaluate(self) -> RepositoryEvaluation:
         """Evaluate one repository without executing commands or changing it."""
         started = time.monotonic()
-        repo = self._load_repository()
-        head_before = repo.head.commit.hexsha
-        worktree_before = self._worktree_state(repo)
-        branch = None if repo.head.is_detached else repo.active_branch.name
+        snapshot = self._snapshot()
+        analysis = self._analyze(clean=not bool(snapshot.worktree))
+        evaluation_id, json_path, markdown_path = self._artifact_paths(snapshot)
+        self._assert_unchanged(snapshot)
+        report = self._build_report(
+            snapshot,
+            analysis,
+            evaluation_id,
+            json_path,
+            markdown_path,
+            time.monotonic() - started,
+        )
+        self._write_report(report, json_path, markdown_path)
+        return report
 
+    def _snapshot(self) -> _RepositorySnapshot:
+        """Capture the complete repository state used by this evaluation."""
+        repo = self._load_repository()
+        return _RepositorySnapshot(
+            repo=repo,
+            head=repo.head.commit.hexsha,
+            worktree=self._worktree_state(repo),
+            branch=None if repo.head.is_detached else repo.active_branch.name,
+        )
+
+    def _analyze(self, *, clean: bool) -> _EvaluationAnalysis:
+        """Build deterministic evidence without executing inferred commands."""
         summary = RepositoryInspector(self.repository_path).inspect()
         audit = CodeAuditor(self.repository_path).audit()
         plan = PatchPlanner(self.repository_path).build_plan(audit, summary)
-
         validation_commands = [command.command for command in plan.validation_commands]
         unsupported = [
             command
@@ -59,7 +109,7 @@ class EvaluationAgent:
             for severity in FindingSeverity
         }
         checks = self._checks(
-            clean=not bool(worktree_before),
+            clean=clean,
             source_files=len(summary.source_files),
             test_files=len(summary.test_files),
             validation_commands=validation_commands,
@@ -78,46 +128,87 @@ class EvaluationAgent:
             for check in checks
             if check.status is not EvaluationStatus.READY
         ]
-
-        output = self._validated_output_directory()
-        output.mkdir(parents=True, exist_ok=True)
-        evaluation_id = self._evaluation_id(head_before, worktree_before)
-        json_path = output / f"{evaluation_id}.json"
-        markdown_path = output / f"{evaluation_id}.md"
-
-        head_after = repo.head.commit.hexsha
-        worktree_after = self._worktree_state(repo)
-        head_unchanged = head_after == head_before
-        worktree_unchanged = worktree_after == worktree_before
-        if not head_unchanged or not worktree_unchanged:
-            raise RuntimeError("Repository changed during read-only evaluation.")
-
-        report = RepositoryEvaluation(
-            evaluation_id=evaluation_id,
-            repository_name=summary.repository_name,
-            repository_path=str(self.repository_path),
-            base_commit=head_before,
-            branch=branch,
-            generated_at=datetime.now(UTC),
-            duration_seconds=time.monotonic() - started,
+        return _EvaluationAnalysis(
+            summary=summary,
+            audit=audit,
+            plan=plan,
+            validation_commands=validation_commands,
+            unsupported=unsupported,
+            severity_counts=severity_counts,
+            checks=checks,
             status=status,
             readiness_score=readiness_score,
-            audit_score=audit.score,
-            findings=audit.finding_count,
-            patch_tasks=plan.task_count,
-            severity_counts=severity_counts,
-            source_files=len(summary.source_files),
-            test_files=len(summary.test_files),
-            validation_commands=validation_commands,
-            supported_validation_commands=(len(validation_commands) - len(unsupported)),
-            unsupported_validation_commands=unsupported,
-            checks=checks,
             warnings=warnings,
+        )
+
+    def _artifact_paths(
+        self,
+        snapshot: _RepositorySnapshot,
+    ) -> tuple[str, Path, Path]:
+        """Create external evidence paths for the captured repository state."""
+        output = self._validated_output_directory()
+        output.mkdir(parents=True, exist_ok=True)
+        evaluation_id = self._evaluation_id(snapshot.head, snapshot.worktree)
+        return (
+            evaluation_id,
+            output / f"{evaluation_id}.json",
+            output / f"{evaluation_id}.md",
+        )
+
+    def _assert_unchanged(self, snapshot: _RepositorySnapshot) -> None:
+        """Fail if analysis changed HEAD or the working-tree fingerprint."""
+        if (
+            snapshot.repo.head.commit.hexsha != snapshot.head
+            or self._worktree_state(snapshot.repo) != snapshot.worktree
+        ):
+            raise RuntimeError("Repository changed during read-only evaluation.")
+
+    def _build_report(
+        self,
+        snapshot: _RepositorySnapshot,
+        analysis: _EvaluationAnalysis,
+        evaluation_id: str,
+        json_path: Path,
+        markdown_path: Path,
+        duration_seconds: float,
+    ) -> RepositoryEvaluation:
+        """Build the typed report after repository integrity is confirmed."""
+        return RepositoryEvaluation(
+            evaluation_id=evaluation_id,
+            repository_name=analysis.summary.repository_name,
+            repository_path=str(self.repository_path),
+            base_commit=snapshot.head,
+            branch=snapshot.branch,
+            generated_at=datetime.now(UTC),
+            duration_seconds=duration_seconds,
+            status=analysis.status,
+            readiness_score=analysis.readiness_score,
+            audit_score=analysis.audit.score,
+            findings=analysis.audit.finding_count,
+            patch_tasks=analysis.plan.task_count,
+            severity_counts=analysis.severity_counts,
+            source_files=len(analysis.summary.source_files),
+            test_files=len(analysis.summary.test_files),
+            validation_commands=analysis.validation_commands,
+            supported_validation_commands=(
+                len(analysis.validation_commands) - len(analysis.unsupported)
+            ),
+            unsupported_validation_commands=analysis.unsupported,
+            checks=analysis.checks,
+            warnings=analysis.warnings,
             json_path=str(json_path),
             markdown_path=str(markdown_path),
-            original_head_unchanged=head_unchanged,
-            original_worktree_unchanged=worktree_unchanged,
+            original_head_unchanged=True,
+            original_worktree_unchanged=True,
         )
+
+    def _write_report(
+        self,
+        report: RepositoryEvaluation,
+        json_path: Path,
+        markdown_path: Path,
+    ) -> None:
+        """Persist the external machine-readable and reviewable evidence."""
         json_path.write_text(
             json.dumps(report.model_dump(mode="json"), indent=2),
             encoding="utf-8",
@@ -128,7 +219,6 @@ class EvaluationAgent:
             encoding="utf-8",
             newline="\n",
         )
-        return report
 
     def _load_repository(self) -> Repo:
         try:
@@ -199,96 +289,83 @@ class EvaluationAgent:
         unsupported: list[str],
         severity_counts: dict[str, int],
     ) -> list[EvaluationCheck]:
+        critical = severity_counts[FindingSeverity.CRITICAL.value]
+        high = severity_counts[FindingSeverity.HIGH.value]
         return [
-            EvaluationCheck(
-                check_id="EVAL001",
-                title="Repository cleanliness",
-                status=(EvaluationStatus.READY if clean else EvaluationStatus.CAUTION),
-                details=(
-                    "Working tree is clean."
-                    if clean
-                    else "Working tree changes require human review."
-                ),
+            EvaluationAgent._check(
+                "EVAL001",
+                "Repository cleanliness",
+                clean,
+                EvaluationStatus.CAUTION,
+                "Working tree is clean.",
+                "Working tree changes require human review.",
             ),
-            EvaluationCheck(
-                check_id="EVAL002",
-                title="Source-code detection",
-                status=(
-                    EvaluationStatus.READY if source_files else EvaluationStatus.BLOCKED
-                ),
-                details=(
-                    f"Detected {source_files} source file(s)."
-                    if source_files
-                    else "No supported source files were detected."
-                ),
+            EvaluationAgent._check(
+                "EVAL002",
+                "Source-code detection",
+                bool(source_files),
+                EvaluationStatus.BLOCKED,
+                f"Detected {source_files} source file(s).",
+                "No supported source files were detected.",
             ),
-            EvaluationCheck(
-                check_id="EVAL003",
-                title="Automated-test detection",
-                status=(
-                    EvaluationStatus.READY if test_files else EvaluationStatus.CAUTION
-                ),
-                details=(
-                    f"Detected {test_files} test file(s)."
-                    if test_files
-                    else "No automated test files were detected."
-                ),
+            EvaluationAgent._check(
+                "EVAL003",
+                "Automated-test detection",
+                bool(test_files),
+                EvaluationStatus.CAUTION,
+                f"Detected {test_files} test file(s).",
+                "No automated test files were detected.",
             ),
-            EvaluationCheck(
-                check_id="EVAL004",
-                title="Validation strategy",
-                status=(
-                    EvaluationStatus.READY
-                    if validation_commands
-                    else EvaluationStatus.CAUTION
-                ),
-                details=(
-                    f"Detected {len(validation_commands)} validation command(s)."
-                    if validation_commands
-                    else "No validation commands were inferred."
-                ),
+            EvaluationAgent._check(
+                "EVAL004",
+                "Validation strategy",
+                bool(validation_commands),
+                EvaluationStatus.CAUTION,
+                f"Detected {len(validation_commands)} validation command(s).",
+                "No validation commands were inferred.",
             ),
-            EvaluationCheck(
-                check_id="EVAL005",
-                title="Validation command policy",
-                status=(
-                    EvaluationStatus.READY
-                    if not unsupported
-                    else EvaluationStatus.CAUTION
-                ),
-                details=(
-                    "All inferred validation commands are allowlisted."
-                    if not unsupported
-                    else f"{len(unsupported)} inferred command(s) are blocked."
-                ),
+            EvaluationAgent._check(
+                "EVAL005",
+                "Validation command policy",
+                not unsupported,
+                EvaluationStatus.CAUTION,
+                "All inferred validation commands are allowlisted.",
+                f"{len(unsupported)} inferred command(s) are blocked.",
             ),
-            EvaluationCheck(
-                check_id="EVAL006",
-                title="Critical findings",
-                status=(
-                    EvaluationStatus.BLOCKED
-                    if severity_counts[FindingSeverity.CRITICAL.value]
-                    else EvaluationStatus.READY
-                ),
-                details=(
-                    f"Detected {severity_counts[FindingSeverity.CRITICAL.value]} "
-                    "critical finding(s)."
-                ),
+            EvaluationAgent._check(
+                "EVAL006",
+                "Critical findings",
+                not critical,
+                EvaluationStatus.BLOCKED,
+                "Detected 0 critical finding(s).",
+                f"Detected {critical} critical finding(s).",
             ),
-            EvaluationCheck(
-                check_id="EVAL007",
-                title="High-severity findings",
-                status=(
-                    EvaluationStatus.CAUTION
-                    if severity_counts[FindingSeverity.HIGH.value]
-                    else EvaluationStatus.READY
-                ),
-                details=(
-                    f"Detected {severity_counts[FindingSeverity.HIGH.value]} "
-                    "high-severity finding(s)."
-                ),
+            EvaluationAgent._check(
+                "EVAL007",
+                "High-severity findings",
+                not high,
+                EvaluationStatus.CAUTION,
+                "Detected 0 high-severity finding(s).",
+                f"Detected {high} high-severity finding(s).",
             ),
         ]
+
+    @staticmethod
+    def _check(
+        check_id: str,
+        title: str,
+        passed: bool,
+        failed_status: EvaluationStatus,
+        passed_details: str,
+        failed_details: str,
+    ) -> EvaluationCheck:
+        """Build one deterministic binary readiness check."""
+        return EvaluationCheck(
+            check_id=check_id,
+            title=title,
+            status=EvaluationStatus.READY if passed else failed_status,
+            details=passed_details if passed else failed_details,
+        )
 
     @staticmethod
     def _markdown(report: RepositoryEvaluation) -> str:
