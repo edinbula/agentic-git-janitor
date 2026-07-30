@@ -8,8 +8,9 @@ During early development, security fixes are applied to the latest version on th
 
 | Version | Supported |
 |---|---:|
+| `1.0.0rc1` | Yes |
 | Latest `main` | Yes |
-| Older pre-release versions | No |
+| `0.x` versions | No |
 
 This policy may change after the first stable release.
 
@@ -50,8 +51,10 @@ The project is designed around these boundaries:
 - No history rewriting
 - No branch deletion
 - Human approval before repository modification
-- Command allowlists for future execution features
-- Isolated workspaces for future patch generation
+- Exact command and argument allowlists for validation execution
+- Isolated workspaces with patch and per-file integrity bindings
+- Passing verification bound to the proposal revision and patch checksum
+- Recoverable local branches and backups for approved application
 - No intentional collection of repository secrets
 
 ## Safe testing

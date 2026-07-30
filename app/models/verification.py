@@ -35,4 +35,6 @@ class VerificationReport(BaseModel):
     report_path: str
     passed: bool
     results: list[CommandResult] = Field(default_factory=list)
+    base_commit: str = ""
+    patch_sha256: str = ""
     original_repository_untouched: bool = True

@@ -119,9 +119,7 @@ Plans may change as implementation and safety testing progress.
 - Optional local commit creation
 - No automatic remote push
 
-## Planned
-
-### Sprint 10 — Stable Release (`v1.0.0`)
+### Sprint 10 — Stable Release (`v1.0.0rc1`)
 
 - End-to-end safety review
 - Stable public models
@@ -131,6 +129,10 @@ Plans may change as implementation and safety testing progress.
 - Release packaging
 - Security hardening
 - User documentation
+
+The release candidate is complete in source. Final `v1.0.0` promotion requires
+green Windows/Linux CI and successful testing against representative external
+Python repositories.
 
 ## Future exploration
 

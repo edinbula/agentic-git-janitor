@@ -159,8 +159,10 @@ git-janitor verify REPOSITORY PATCH-IDENTIFIER --json
 ```
 
 Validation executes only in the proposal's isolated workspace. Commands are
-parsed without a shell, checked against the executable allowlist, constrained
-by a timeout, and captured in a persisted QA report.
+parsed without a shell, checked against exact executable and argument policies,
+resolved to an installed executable, constrained by a timeout, and captured in
+a persisted QA report. The report is bound to the proposal base commit and
+patch checksum.
 
 ## `document`
 
@@ -219,7 +221,8 @@ git-janitor approve REPOSITORY PATCH-IDENTIFIER \
   --reason "Reviewed and verified"
 ```
 
-The decision is bound to the proposal's base commit and patch SHA-256 checksum.
+The decision is bound to the proposal's base commit, patch SHA-256 checksum,
+verification report, and per-file workspace hashes.
 
 ## `reject`
 

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import shutil
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from git import Repo
 
@@ -18,7 +19,7 @@ from app.models.approval import (
     ProposalDecision,
 )
 from app.models.patch import PatchProposal
-from app.models.verification import VerificationReport
+from app.models.verification import VerificationReport, VerificationStatus
 
 
 class ApprovalAgent:
@@ -35,6 +36,7 @@ class ApprovalAgent:
     def approve(self, proposal_id: str, reason: str = "") -> ProposalDecision:
         """Approve a proposal only after successful isolated verification."""
         proposal = self._load_proposal(proposal_id)
+        self._validate_proposal_integrity(proposal)
         verification = self._load_verification(proposal_id)
         if not verification.passed:
             raise ValueError("Only a successfully verified proposal can be approved.")
@@ -66,13 +68,15 @@ class ApprovalAgent:
         decision = self._load_decision(proposal_id)
         if decision.decision != DecisionStatus.APPROVED:
             raise ValueError("Proposal does not have an approved decision.")
-        self._validate_integrity(proposal, decision)
 
         repo = Repo(self.repository_path)
         if repo.is_dirty(untracked_files=True):
             raise ValueError("Application requires a clean repository.")
+        self._validate_integrity(proposal, decision)
         if repo.head.commit.hexsha != proposal.base_commit:
             raise ValueError("Repository HEAD changed after proposal generation.")
+        if repo.head.is_detached:
+            raise ValueError("Application requires a named source branch.")
         original_branch = repo.active_branch.name
         branch = f"janitor/{proposal_id.lower()}"
         if branch in {item.name for item in repo.branches}:
@@ -87,15 +91,8 @@ class ApprovalAgent:
         originals: dict[str, bytes] = {}
         try:
             for relative in paths:
-                source = self.repository_path / relative
-                candidate = workspace / relative
-                if (
-                    not source.is_file()
-                    or source.is_symlink()
-                    or not candidate.is_file()
-                    or candidate.is_symlink()
-                ):
-                    raise ValueError(f"Unsafe application file: '{relative}'.")
+                source = self._validated_file(self.repository_path, relative)
+                candidate = self._validated_file(workspace, relative)
                 originals[relative] = source.read_bytes()
                 backup_file = backup / relative
                 backup_file.parent.mkdir(parents=True, exist_ok=True)
@@ -103,11 +100,13 @@ class ApprovalAgent:
 
             repo.git.checkout("-b", branch)
             for relative in paths:
-                target = self.repository_path / relative
-                shutil.copy2(workspace / relative, target)
+                target = self._validated_file(self.repository_path, relative)
+                candidate = self._validated_file(workspace, relative)
+                shutil.copy2(candidate, target)
             changed = {item.a_path or item.b_path for item in repo.index.diff(None)}
             if changed != set(paths):
                 raise RuntimeError("Applied files differ from approved proposal scope.")
+            self._validate_applied_content(proposal)
 
             commit_sha: str | None = None
             status = ApplicationStatus.APPLIED
@@ -125,6 +124,8 @@ class ApprovalAgent:
                 repo.git.checkout(original_branch)
             if branch in {item.name for item in repo.branches}:
                 repo.git.branch("-D", branch)
+            if backup.is_dir():
+                shutil.rmtree(backup)
             raise
 
         reports = self._output_path(self.settings.applications_directory)
@@ -190,7 +191,10 @@ class ApprovalAgent:
         if not path.is_file():
             raise ValueError(f"Proposal '{proposal_id}' was not found.")
         proposal = PatchProposal.model_validate_json(path.read_text(encoding="utf-8"))
-        if Path(proposal.repository_path).resolve() != self.repository_path:
+        if (
+            proposal.proposal_id != proposal_id
+            or Path(proposal.repository_path).resolve() != self.repository_path
+        ):
             raise ValueError("Proposal belongs to a different repository.")
         return proposal
 
@@ -204,10 +208,23 @@ class ApprovalAgent:
         report = VerificationReport.model_validate_json(
             path.read_text(encoding="utf-8")
         )
-        if report.proposal_id != proposal_id or Path(
-            report.workspace_path
-        ).resolve() != self._validated_workspace(self._load_proposal(proposal_id)):
+        proposal = self._load_proposal(proposal_id)
+        if (
+            report.proposal_id != proposal_id
+            or Path(report.workspace_path).resolve()
+            != self._validated_workspace(proposal)
+            or Path(report.report_path).resolve() != path.resolve()
+            or report.base_commit != proposal.base_commit
+            or report.patch_sha256 != proposal.patch_sha256
+            or not report.results
+        ):
             raise ValueError("Verification report does not match the proposal.")
+        commands_passed = all(
+            result.status is VerificationStatus.PASSED and result.exit_code == 0
+            for result in report.results
+        )
+        if report.passed != commands_passed:
+            raise ValueError("Verification report status is internally inconsistent.")
         return report
 
     def _load_decision(self, proposal_id: str) -> ProposalDecision:
@@ -217,7 +234,15 @@ class ApprovalAgent:
         )
         if not path.is_file():
             raise ValueError("An explicit approval decision is required.")
-        return ProposalDecision.model_validate_json(path.read_text(encoding="utf-8"))
+        decision = ProposalDecision.model_validate_json(
+            path.read_text(encoding="utf-8")
+        )
+        if (
+            decision.proposal_id != proposal_id
+            or Path(decision.record_path).resolve() != path.resolve()
+        ):
+            raise ValueError("Approval record identity does not match its artifact.")
+        return decision
 
     def _validate_integrity(
         self,
@@ -229,25 +254,110 @@ class ApprovalAgent:
             decision.base_commit != proposal.base_commit
             or decision.patch_sha256 != proposal.patch_sha256
             or Path(decision.repository_path).resolve() != self.repository_path
+            or decision.proposal_id != proposal.proposal_id
         ):
             raise ValueError("Approval record does not match proposal integrity.")
 
     def _validate_proposal_integrity(self, proposal: PatchProposal) -> None:
         if not proposal.base_commit or not proposal.patch_sha256:
-            raise ValueError("Proposal lacks Sprint 9 integrity metadata.")
-        patch = Path(proposal.patch_path)
-        if not patch.is_file():
-            raise ValueError("Proposal patch artifact is missing.")
+            raise ValueError("Proposal lacks required integrity metadata.")
+        expected_patch = (
+            self._output_path(self.settings.patches_directory)
+            / f"{proposal.proposal_id}.patch"
+        ).resolve()
+        expected_metadata = (
+            self._output_path(self.settings.patches_directory)
+            / f"{proposal.proposal_id}.json"
+        ).resolve()
+        patch = Path(proposal.patch_path).resolve()
+        if (
+            patch != expected_patch
+            or Path(proposal.metadata_path).resolve() != expected_metadata
+            or not patch.is_file()
+        ):
+            raise ValueError("Proposal artifacts are missing or outside their root.")
         digest = hashlib.sha256(patch.read_bytes()).hexdigest()
         if digest != proposal.patch_sha256:
             raise ValueError("Proposal patch checksum does not match metadata.")
+        if patch.read_text(encoding="utf-8") != proposal.unified_diff:
+            raise ValueError("Proposal diff does not match its patch artifact.")
+
+        workspace = self._validated_workspace(proposal)
+        for item in proposal.files:
+            self._validated_file(self.repository_path, item.path)
+            candidate = self._validated_file(workspace, item.path)
+            if not item.content_sha256:
+                raise ValueError("Proposal lacks v1 file-integrity metadata.")
+            if (
+                hashlib.sha256(candidate.read_bytes()).hexdigest()
+                != item.content_sha256
+            ):
+                raise ValueError(
+                    f"Workspace content checksum failed for '{item.path}'."
+                )
+        if self._workspace_diff(proposal, workspace) != proposal.unified_diff:
+            raise ValueError("Workspace content does not match the patch artifact.")
+
+    def _workspace_diff(self, proposal: PatchProposal, workspace: Path) -> str:
+        parts: list[str] = []
+        for item in proposal.files:
+            source = self._validated_file(self.repository_path, item.path)
+            candidate = self._validated_file(workspace, item.path)
+            parts.extend(
+                difflib.unified_diff(
+                    source.read_text(encoding="utf-8").splitlines(keepends=True),
+                    candidate.read_text(encoding="utf-8").splitlines(keepends=True),
+                    fromfile=f"a/{item.path}",
+                    tofile=f"b/{item.path}",
+                )
+            )
+        return "".join(parts)
 
     def _validated_workspace(self, proposal: PatchProposal) -> Path:
         workspace = Path(proposal.workspace_path).resolve()
         root = self._output_path(self.settings.workspace_directory).resolve()
-        if not workspace.is_dir() or not workspace.is_relative_to(root):
+        expected = (root / proposal.proposal_id).resolve()
+        if (
+            workspace != expected
+            or not workspace.is_dir()
+            or not workspace.is_relative_to(root)
+        ):
             raise ValueError("Proposal workspace is missing or outside its safe root.")
         return workspace
+
+    def _validate_applied_content(self, proposal: PatchProposal) -> None:
+        for item in proposal.files:
+            target = self._validated_file(self.repository_path, item.path)
+            if hashlib.sha256(target.read_bytes()).hexdigest() != item.content_sha256:
+                raise RuntimeError(
+                    f"Applied content checksum failed for '{item.path}'."
+                )
+
+    @staticmethod
+    def _validated_file(root: Path, relative: str) -> Path:
+        normalized = PurePosixPath(relative.replace("\\", "/"))
+        if (
+            normalized.is_absolute()
+            or ".." in normalized.parts
+            or not normalized.parts
+            or ":" in normalized.parts[0]
+        ):
+            raise ValueError(f"Unsafe application file: '{relative}'.")
+        raw = root.joinpath(*normalized.parts)
+        resolved_root = root.resolve()
+        resolved = raw.resolve()
+        cursor = root
+        contains_symlink = False
+        for part in normalized.parts:
+            cursor /= part
+            contains_symlink = contains_symlink or cursor.is_symlink()
+        if (
+            not resolved.is_relative_to(resolved_root)
+            or not resolved.is_file()
+            or contains_symlink
+        ):
+            raise ValueError(f"Unsafe application file: '{relative}'.")
+        return resolved
 
     @staticmethod
     def _validate_identifier(proposal_id: str) -> None:

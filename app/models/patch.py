@@ -33,6 +33,7 @@ class PatchFileSummary(BaseModel):
     path: str
     additions: int = Field(ge=0)
     deletions: int = Field(ge=0)
+    content_sha256: str = ""
 
 
 class PatchProposal(BaseModel):

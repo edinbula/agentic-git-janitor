@@ -107,15 +107,17 @@ class OllamaProvider:
         path: str,
         body: dict[str, object] | None = None,
     ) -> dict[str, Any]:
+        url = self._local_url(path)
         data = json.dumps(body).encode("utf-8") if body is not None else None
         request = urllib.request.Request(
-            f"{self.base_url}{path}",
+            url,
             data=data,
             headers={"Content-Type": "application/json"},
             method=method,
         )
         try:
-            with urllib.request.urlopen(
+            # _local_url revalidates the scheme, host, port, and path.
+            with urllib.request.urlopen(  # nosec B310
                 request,
                 timeout=self.timeout_seconds,
             ) as response:
@@ -131,6 +133,20 @@ class OllamaProvider:
         if not isinstance(payload, dict):
             raise RuntimeError("Ollama returned an unexpected response.")
         return payload
+
+    def _local_url(self, path: str) -> str:
+        if not path.startswith("/") or path.startswith("//"):
+            raise ValueError("Ollama API path must be an absolute local path.")
+        url = f"{self.base_url}{path}"
+        parsed = urllib.parse.urlsplit(url)
+        if (
+            parsed.scheme != "http"
+            or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ValueError("Ollama request URL must remain on the local host.")
+        return url
 
     @staticmethod
     def _optional_int(value: object) -> int | None:

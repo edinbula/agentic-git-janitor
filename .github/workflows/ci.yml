@@ -12,11 +12,15 @@ permissions:
 
 jobs:
   quality:
-    name: Quality and tests
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
         python-version:
           - "3.11"
           - "3.12"
@@ -35,23 +39,51 @@ jobs:
         run: python -m pip install --upgrade pip setuptools wheel
 
       - name: Install project
-        run: |
-          if python -m pip install -e ".[dev]"; then
-            echo "Installed development dependency group."
-          else
-            echo "Development group unavailable; installing project and tools directly."
-            python -m pip install -e .
-            python -m pip install ruff mypy pytest pytest-cov
-          fi
+        run: python -m pip install -e ".[dev]"
 
       - name: Ruff lint
-        run: ruff check .
+        run: python -m ruff check .
 
       - name: Ruff format check
-        run: ruff format --check .
+        run: python -m ruff format --check .
 
       - name: mypy
-        run: mypy app
+        run: python -m mypy app
 
       - name: pytest
-        run: pytest --cov=app --cov-report=term-missing
+        run: python -m pytest --cov=app --cov-report=term-missing
+
+      - name: Bandit security scan
+        run: python -m bandit -q -r app
+
+  package:
+    name: Build and smoke-test wheel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build frontend
+        run: python -m pip install --upgrade pip "build>=1.2,<2"
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Smoke-test wheel
+        run: |
+          python -m venv /tmp/janitor-wheel-test
+          /tmp/janitor-wheel-test/bin/python -m pip install dist/*.whl
+          /tmp/janitor-wheel-test/bin/git-janitor version
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentic-git-janitor-distributions
+          path: dist/*

@@ -198,10 +198,12 @@ working tree.
 ### Approval and application
 
 Approval requires a passing verification report and records the proposal base
-commit and patch checksum. Application revalidates those values, requires a
-clean repository at the same commit, writes backups, and applies only the
-approved file scope on a new local branch. An optional commit remains local;
-the agent never pushes.
+commit and patch checksum. Proposal metadata also binds each replacement file
+to its SHA-256 content digest. Verification and application revalidate the
+artifact roots, workspace content, revision, patch, file scope, and decision
+record. Application requires a clean named branch at the same commit, writes
+backups, and applies only the approved file scope on a new local branch. An
+optional commit remains local; the agent never pushes.
 
 ### Provider isolation
 
@@ -212,10 +214,11 @@ models receive no shell, Git, or direct filesystem capability.
 
 ### Command restrictions
 
-Future command execution must use:
+Validation command execution uses:
 
-- Explicit allowlists
-- Argument validation
+- Exact executable allowlists
+- Exact argument-shape validation
+- Resolved executable paths
 - Timeouts
 - Captured output
 - No implicit shell expansion

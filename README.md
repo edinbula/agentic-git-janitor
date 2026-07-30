@@ -58,13 +58,18 @@ The project is designed around four principles:
 - Validate provider output against typed schemas and planned file scope
 - Record explicit approval or rejection decisions for patch proposals
 - Bind approval to the proposal base commit and patch SHA-256 checksum
+- Bind every proposed file and verification report to immutable integrity metadata
 - Apply approved, verified proposals on recoverable local branches
 - Create optional local commits without ever pushing automatically
 - Validate the project with Ruff, mypy, and pytest
 
-## Planned capabilities
+## Release-candidate status
 
-- Stable end-to-end repair workflow
+`v1.0.0rc1` contains the stable guarded workflow and is intended for final
+cross-platform and real-repository validation before `v1.0.0`.
+
+Post-1.0 candidates include:
+
 - Multi-provider model support
 - Streamlit dashboard
 - Pull request generation
@@ -288,8 +293,9 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.6.0` | Completed | Safe isolated QA verification |
 | `v0.7.0` | Completed | Deterministic documentation agent |
 | `v0.8.0` | Completed | Local providers and bounded AI drafts |
-| `v0.9.0` | Current | Explicit approval and safe local application |
-| `v1.0.0` | Planned | Stable safety-reviewed workflow |
+| `v0.9.0` | Completed | Explicit approval and safe local application |
+| `v1.0.0rc1` | Current | Cross-platform, safety-reviewed release candidate |
+| `v1.0.0` | Next | Stable guarded Python workflow |
 
 See the full [Roadmap](docs/roadmap.md).
 
@@ -308,7 +314,13 @@ Current safeguards include:
 - Structured findings before any future patch generation
 - Passing QA and explicit human approval before application
 - Base-commit and patch-checksum integrity checks
+- Per-file content hashes and verification-report integrity binding
+- Exact validation-command argument policies
 - Recoverable local application branch and backups
+
+Existing `v0.9.0` proposal and verification artifacts must be regenerated
+because they do not contain the new v1 integrity fields. See the
+[v1 migration guide](docs/migration-v1.md).
 
 Security concerns should be reported according to [SECURITY.md](SECURITY.md).
 

@@ -1,5 +1,6 @@
 """Tests for proposal decisions and recoverable application."""
 
+import difflib
 import hashlib
 import json
 import subprocess
@@ -58,8 +59,18 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
     (workspace / "app" / "main.py").write_text(
         "def main() -> str:\n    return 'ready'\n"
     )
+    content_sha256 = hashlib.sha256(
+        (workspace / "app" / "main.py").read_bytes()
+    ).hexdigest()
     settings.patches_directory.mkdir()
-    patch_text = "--- a/app/main.py\n+++ b/app/main.py\n-# TODO\n"
+    patch_text = "".join(
+        difflib.unified_diff(
+            source.read_text().splitlines(keepends=True),
+            (workspace / "app" / "main.py").read_text().splitlines(keepends=True),
+            fromfile="a/app/main.py",
+            tofile="b/app/main.py",
+        )
+    )
     patch_path = settings.patches_directory / f"{PROPOSAL_ID}.patch"
     patch_path.write_text(patch_text)
     metadata_path = settings.patches_directory / f"{PROPOSAL_ID}.json"
@@ -71,7 +82,14 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
         workspace_path=str(workspace),
         patch_path=str(patch_path),
         metadata_path=str(metadata_path),
-        files=[PatchFileSummary(path="app/main.py", additions=0, deletions=1)],
+        files=[
+            PatchFileSummary(
+                path="app/main.py",
+                additions=0,
+                deletions=1,
+                content_sha256=content_sha256,
+            )
+        ],
         additions=0,
         deletions=1,
         unified_diff=patch_text,
@@ -88,6 +106,8 @@ def configured_agent(tmp_path: Path) -> tuple[ApprovalAgent, Path]:
         workspace_path=str(workspace),
         report_path=str(report_path),
         passed=True,
+        base_commit=base_commit,
+        patch_sha256=proposal.patch_sha256,
         results=[
             CommandResult(
                 purpose="Run tests",
@@ -130,6 +150,28 @@ def test_tampered_patch_cannot_be_approved(tmp_path: Path) -> None:
         agent.approve(PROPOSAL_ID)
 
 
+def test_tampered_workspace_cannot_be_approved(tmp_path: Path) -> None:
+    agent, _ = configured_agent(tmp_path)
+    workspace_file = (
+        agent.settings.workspace_directory / PROPOSAL_ID / "app" / "main.py"
+    )
+    workspace_file.write_text("def main() -> str:\n    return 'tampered'\n")
+
+    with pytest.raises(ValueError, match="Workspace content checksum"):
+        agent.approve(PROPOSAL_ID)
+
+
+def test_tampered_verification_binding_cannot_be_approved(tmp_path: Path) -> None:
+    agent, _ = configured_agent(tmp_path)
+    report_path = agent.settings.reports_directory / f"{PROPOSAL_ID}.verification.json"
+    report = json.loads(report_path.read_text())
+    report["base_commit"] = "0" * 40
+    report_path.write_text(json.dumps(report))
+
+    with pytest.raises(ValueError, match="does not match"):
+        agent.approve(PROPOSAL_ID)
+
+
 def test_approved_proposal_applies_on_local_branch(tmp_path: Path) -> None:
     agent, repository = configured_agent(tmp_path)
     agent.approve(PROPOSAL_ID)
@@ -162,3 +204,37 @@ def test_application_refuses_changed_head(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="HEAD changed"):
         agent.apply(PROPOSAL_ID)
+
+
+def test_application_refuses_tampered_approval_record(tmp_path: Path) -> None:
+    agent, _ = configured_agent(tmp_path)
+    decision = agent.approve(PROPOSAL_ID)
+    path = Path(decision.record_path)
+    payload = json.loads(path.read_text())
+    payload["patch_sha256"] = "0" * 64
+    path.write_text(json.dumps(payload))
+
+    with pytest.raises(ValueError, match="does not match proposal integrity"):
+        agent.apply(PROPOSAL_ID)
+
+
+def test_application_failure_rolls_back_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent, repository = configured_agent(tmp_path)
+    original_branch = run_git(repository, "branch", "--show-current")
+    agent.approve(PROPOSAL_ID)
+
+    def fail_copy(*_args: object, **_kwargs: object) -> None:
+        raise OSError("simulated copy failure")
+
+    monkeypatch.setattr("app.agents.approval_agent.shutil.copy2", fail_copy)
+
+    with pytest.raises(OSError, match="simulated copy failure"):
+        agent.apply(PROPOSAL_ID)
+
+    assert run_git(repository, "branch", "--show-current") == original_branch
+    assert "# TODO" in (repository / "app" / "main.py").read_text()
+    assert "janitor/patch-abc123" not in run_git(repository, "branch")
+    assert not (agent.settings.backups_directory / PROPOSAL_ID).exists()

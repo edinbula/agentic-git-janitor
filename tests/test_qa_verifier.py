@@ -1,7 +1,9 @@
 """Tests for safe isolated QA verification."""
 
+import subprocess
 from pathlib import Path
 
+import pytest
 from app.agents.qa_verifier import QAVerifier
 from app.config.settings import Settings
 from app.models.verification import VerificationStatus
@@ -21,13 +23,27 @@ def verifier(tmp_path: Path, timeout: int = 2) -> QAVerifier:
     return QAVerifier(repository, settings)
 
 
-def test_allowed_command_passes(tmp_path: Path) -> None:
+def test_allowed_command_passes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            ["pytest"], 0, "ready\n", ""
+        ),
+    )
+    monkeypatch.setattr(
+        "app.agents.qa_verifier.shutil.which",
+        lambda _executable: "/safe/pytest",
+    )
 
     result = verifier(tmp_path)._run(
-        "Check Python",
-        "python -c \"print('ready')\"",
+        "Run tests",
+        "pytest",
         workspace,
     )
 
@@ -36,13 +52,27 @@ def test_allowed_command_passes(tmp_path: Path) -> None:
     assert "ready" in result.stdout
 
 
-def test_nonzero_command_fails(tmp_path: Path) -> None:
+def test_nonzero_command_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            ["pytest"], 3, "", "failed"
+        ),
+    )
+    monkeypatch.setattr(
+        "app.agents.qa_verifier.shutil.which",
+        lambda _executable: "/safe/pytest",
+    )
 
     result = verifier(tmp_path)._run(
         "Fail safely",
-        'python -c "raise SystemExit(3)"',
+        "pytest",
         workspace,
     )
 
@@ -65,13 +95,24 @@ def test_unknown_executable_is_blocked(tmp_path: Path) -> None:
     assert "not allowlisted" in result.stderr
 
 
-def test_command_timeout_is_reported(tmp_path: Path) -> None:
+def test_command_timeout_is_reported(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
+    def time_out(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(["pytest"], 1)
+
+    monkeypatch.setattr(subprocess, "run", time_out)
+    monkeypatch.setattr(
+        "app.agents.qa_verifier.shutil.which",
+        lambda _executable: "/safe/pytest",
+    )
     result = verifier(tmp_path, timeout=1)._run(
         "Timeout",
-        'python -c "import time; time.sleep(2)"',
+        "pytest",
         workspace,
     )
 

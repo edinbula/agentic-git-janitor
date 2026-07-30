@@ -194,6 +194,9 @@ class PatchWriter:
                     path=relative_path,
                     additions=additions,
                     deletions=deletions,
+                    content_sha256=hashlib.sha256(
+                        new_content.encode("utf-8")
+                    ).hexdigest(),
                 )
             )
 

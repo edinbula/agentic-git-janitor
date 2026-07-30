@@ -8,7 +8,36 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Real-repository compatibility testing
+- Feedback-driven fixes from the `v1.0.0rc1` release candidate
+
+## [1.0.0rc1] - 2026-07-30
+
+### Added
+
+- Release-level integration coverage for the complete guarded workflow
+- Windows and Linux CI across Python 3.11 and 3.12
+- Bandit security scanning in every CI matrix job
+- Wheel and source-distribution build validation with installation smoke tests
+- Tagged-release distribution validation workflow
+- v0.9-to-v1 migration guide and release checklist
+
+### Changed
+
+- Proposal files now carry SHA-256 content bindings
+- Verification reports are bound to proposal base commits and patch checksums
+- Validation commands require exact executable and argument-policy matches
+- Allowlisted executables are resolved before execution
+- Dependency and development-tool ranges are bounded by compatible major versions
+
+### Security
+
+- Approval and application reject modified proposal workspaces
+- Proposal patch, metadata, report, decision, and workspace paths are revalidated
+- Application rejects traversal, symlink, detached-HEAD, stale-commit, and
+  out-of-scope states
+- Ollama requests are revalidated as local HTTP URLs immediately before opening
+- Failed applications restore source files, remove temporary branches, and remove
+  incomplete backups
 
 ## [0.9.0] - 2026-07-28
 
