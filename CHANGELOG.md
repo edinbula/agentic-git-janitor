@@ -8,7 +8,32 @@ The project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Planned
 
-- Stable `v1.0.0` promotion after release-candidate validation
+- Post-1.0 improvements will be tracked as separately scoped releases
+
+## [1.0.0] - 2026-07-30
+
+### Added
+
+- Stable guarded workflow from repository inspection through reviewed local
+  patch application
+- Deterministic audit, planning, patching, verification, documentation, and
+  field-evaluation evidence
+- Bounded local AI drafting through Ollama with typed provider contracts
+- Cross-platform validation on Windows and Linux with Python 3.11 and 3.12
+
+### Changed
+
+- Promoted the fully validated `v1.0.0rc3` implementation without functional
+  workflow changes
+- Declared the evidence-backed readiness thresholds and five-repository field
+  protocol stable
+
+### Safety
+
+- Read-only operations preserve repository HEAD and complete working-tree state
+- Patch application requires verified artifacts, explicit approval, and
+  recoverable local branches
+- No workflow pushes repository changes automatically
 
 ## [1.0.0rc3] - 2026-07-30
 

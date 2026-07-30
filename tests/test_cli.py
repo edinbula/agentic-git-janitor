@@ -28,7 +28,7 @@ def test_version_command_reports_package_version() -> None:
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "1.0.0rc3" in result.stdout
+    assert "1.0.0" in result.stdout
 
 
 def test_approval_commands_are_registered() -> None:

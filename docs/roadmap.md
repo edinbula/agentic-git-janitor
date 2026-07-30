@@ -162,6 +162,19 @@ repositories; field results may produce narrowly scoped fixes before promotion.
 Stable `v1.0.0` remains gated on green cross-platform CI and successful
 re-evaluation of the five-repository set using this candidate.
 
+### Sprint 13 — Stable Release (`v1.0.0`)
+
+- Promote the validated `v1.0.0rc3` implementation without feature changes
+- Finalize stable package, changelog, README, and roadmap metadata
+- Repeat linting, formatting, typing, tests, coverage, and security validation
+- Build source and wheel distributions from a clean source tree
+- Install and smoke-test the wheel in a fresh environment
+- Confirm Windows and Linux CI across Python 3.11 and 3.12
+- Validate the immutable `v1.0.0` tag before publication
+
+Stable release promotion is complete only when the local release gate, main
+branch CI, and tagged Release Validation workflow all pass.
+
 ## Future exploration
 
 Potential post-1.0 areas:

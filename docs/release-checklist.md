@@ -40,5 +40,8 @@
 - [ ] Update release notes after candidate feedback
 - [ ] Confirm `main` is clean and synchronized
 - [ ] Tag `v1.0.0-rc1`
-- [ ] Confirm tag validation succeeds
+- [ ] Confirm release-candidate tag validation succeeds
 - [ ] Promote to `1.0.0` only after real-repository testing
+- [ ] Confirm package and runtime versions report `1.0.0`
+- [ ] Tag the validated stable commit as `v1.0.0`
+- [ ] Confirm stable tag validation succeeds

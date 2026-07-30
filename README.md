@@ -65,10 +65,11 @@ The project is designed around four principles:
 - Create optional local commits without ever pushing automatically
 - Validate the project with Ruff, mypy, and pytest
 
-## Release-candidate status
+## Stable release status
 
-`v1.0.0rc3` incorporates evidence from five representative real repositories
-and adds explicit aggregate audit-readiness thresholds before `v1.0.0`.
+`v1.0.0` is the stable guarded workflow. It incorporates three validated
+release candidates, evidence from five representative real repositories, and
+explicit aggregate audit-readiness thresholds.
 
 Post-1.0 candidates include:
 
@@ -309,8 +310,8 @@ For contribution setup, coding standards, and pull request expectations, see [CO
 | `v0.7.0` | Completed | Deterministic documentation agent |
 | `v0.8.0` | Completed | Local providers and bounded AI drafts |
 | `v0.9.0` | Completed | Explicit approval and safe local application |
-| `v1.0.0rc3` | Current | Evidence-backed field-validation candidate |
-| `v1.0.0` | Next | Stable guarded Python workflow |
+| `v1.0.0rc3` | Completed | Evidence-backed field-validation candidate |
+| `v1.0.0` | Current | Stable guarded Python workflow |
 
 See the full [Roadmap](docs/roadmap.md).
 
